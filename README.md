@@ -23,9 +23,10 @@ The project provides both a **Customer Portal** and an **Admin Dashboard** to ma
 * QR Code Payment
 * Payment Screenshot Upload
 * Order Tracking
+* Order Workspace
 * Order-specific Chat with Business
 * Design Approval Workflow
-* Email Notifications
+* In-App Notifications
 * Profile Management
 
 ---
@@ -74,10 +75,6 @@ The project provides both a **Customer Portal** and an **Admin Dashboard** to ma
 
 * Cloudinary
 
-### Email
-
-* Gmail SMTP
-
 ### Deployment
 
 * Vercel (Frontend)
@@ -88,11 +85,7 @@ The project provides both a **Customer Portal** and an **Admin Dashboard** to ma
 # Project Workflow
 
 ```text
-Customer
-
-↓
-
-Register / Login
+Customer Login
 
 ↓
 
@@ -104,11 +97,11 @@ Select Product
 
 ↓
 
-Choose Variant
+Select Variant
 
 ↓
 
-Choose Template (If Customizable)
+Select Template (For Custom Products)
 
 ↓
 
@@ -116,11 +109,19 @@ Upload Images
 
 ↓
 
-Enter Notes
+Enter Customization Notes
 
 ↓
 
-QR Payment
+Enter Delivery Address
+
+↓
+
+Review Order
+
+↓
+
+Scan QR Code & Complete Payment
 
 ↓
 
@@ -132,15 +133,23 @@ Submit Order
 
 ↓
 
-Payment Verification
+Order Workspace Opens
 
 ↓
 
-Design Creation
+Administrator Verifies Payment
 
 ↓
 
-Customer Approval
+Design Discussion Begins
+
+↓
+
+Administrator Uploads Design Preview
+
+↓
+
+Customer Approves or Requests Changes
 
 ↓
 
@@ -152,7 +161,11 @@ Packing
 
 ↓
 
-Delivery
+Shipping
+
+↓
+
+Delivered
 ```
 
 ---
@@ -205,14 +218,16 @@ Developers should review these documents before starting implementation.
 2. Authentication
 3. Product Management
 4. Customer Module
-5. Customization Module
+5. Product Customization
 6. Order Management
 7. Payment Module
-8. Admin Dashboard
-9. Chat & Design Approval
-10. Notifications
-11. Testing
-12. Deployment
+8. Order Workspace (Chat & Timeline)
+9. Design Approval
+10. Notification Module
+11. Admin Dashboard
+12. Reporting
+13. Testing
+14. Deployment
 
 ---
 
@@ -225,9 +240,10 @@ Developers should review these documents before starting implementation.
 * Orders remain pending until payment verification.
 * Design work begins only after payment verification.
 * Printing begins only after customer approval.
-* Each customized order has its own dedicated chat workspace.
-* Temporary customer images are automatically removed after the configured retention period.
-* Business assets remain permanently stored.
+* Each order has its own dedicated Order Workspace containing chat, uploads, payment details, timeline, and design preview.
+* The Order Workspace remains available throughout the order lifecycle and is archived after delivery.
+* Temporary customer-uploaded images and payment screenshots are automatically removed after the configured retention period.
+* Order history, messages, and business records remain stored permanently.
 
 ---
 

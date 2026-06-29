@@ -16,7 +16,7 @@
 
 **Image Storage:** Cloudinary
 
-**Email Service:** Gmail SMTP
+**Communication Model:** Order Workspace + In-App Chat
 
 ---
 
@@ -362,7 +362,7 @@ Administrator responsibilities include:
 * Delivery management
 * Notification management
 * Report generation
-* SMTP configuration
+* Order Workspace configuration
 * Business profile management
 
 Administrator can access all business data.
@@ -865,18 +865,33 @@ The system shall generate reports for:
 
 ---
 
-# 6.26 Email System
+# 6.26 Order Workspace & In-App Notifications
 
-The system shall automatically send emails for:
+The system shall provide a dedicated Order Workspace for each order containing:
 
-* Registration
-* Order Confirmation
-* Payment Verification
-* Design Upload
-* Order Completion
-* Delivery Confirmation
+* Order Details
+* Payment Information
+* Customer Uploaded Images
+* Customization Notes
+* Order Timeline
+* Chat
+* Design Preview
+* Approval Status
 
-Emails shall be sent using Gmail SMTP.
+The workspace shall remain available throughout the order lifecycle and shall become the primary communication channel between the customer and TagOn.
+
+In-app notifications shall be displayed inside the application for:
+
+* Order Submitted
+* Payment Verified
+* Payment Rejected
+* Design Preview Uploaded
+* Revision Requested
+* Design Approved
+* Printing Started
+* Packed
+* Shipped
+* Delivered
 
 ---
 
@@ -1259,9 +1274,9 @@ PostgreSQL provided by Supabase.
 
 Cloudinary.
 
-### Email Service
+### Communication & Notifications
 
-Gmail SMTP.
+In-app notifications and the Order Workspace.
 
 Environment variables shall be used for all sensitive configuration values.
 
@@ -1581,7 +1596,7 @@ The system shall:
 * Store customization details.
 * Set the order status to **Payment Verification**.
 
-The customer shall receive an order confirmation notification.
+The Order Workspace shall open for the customer, allowing them to begin communication with TagOn and track the order status.
 
 ---
 
@@ -1679,20 +1694,20 @@ Each status shall include a timestamp.
 
 # 8.20 Notifications
 
-Customers shall receive notifications for:
+Customers shall receive in-app notifications for:
 
-* Registration Success
-* Order Submission
-* Payment Verification
-* Design Upload
-* Revision Request
-* Design Approval
+* Order Submitted
+* Payment Verified
+* Payment Rejected
+* Design Preview Uploaded
+* Revision Requested
+* Design Approved
 * Printing Started
-* Packing Completed
-* Shipment
-* Delivery Confirmation
+* Packed
+* Shipped
+* Delivered
 
-Notifications shall be available within the application and may also be delivered through email.
+Notifications shall be displayed inside the application.
 
 ---
 
@@ -1850,7 +1865,7 @@ Administrators can configure:
 
 * Business Information
 * QR Payment Image
-* SMTP Settings
+* Order Workspace Settings
 * Contact Details
 * Social Media Links
 * Image Retention Period

@@ -27,7 +27,7 @@ Project Setup
 * Configure FastAPI Project
 * Configure Database
 * Configure Cloudinary
-* Configure SMTP
+* Configure Order Workspace & Notification Module
 * Create Environment Files
 
 **Output**
@@ -94,7 +94,7 @@ Customers can browse products after login.
 
 ### Phase 5
 
-Customization Module
+Product Customization
 
 Develop:
 
@@ -111,7 +111,7 @@ Customers can prepare customized products.
 
 ### Phase 6
 
-Order Module
+Order Management
 
 Develop:
 
@@ -145,7 +145,59 @@ Orders wait for administrator verification.
 
 ### Phase 8
 
-Admin Module
+Order Workspace (Chat & Timeline)
+
+Develop:
+
+* Dedicated Order Workspace
+* Chat Messaging
+* Timeline Updates
+* Payment Information
+* Uploaded Images
+* Design Preview History
+
+**Output**
+
+Customer and administrator communicate within each order through the workspace.
+
+---
+
+### Phase 9
+
+Design Approval
+
+Develop:
+
+* Design Preview Upload
+* Approval Flow
+* Revision Requests
+* Final Approval Status
+
+**Output**
+
+Designs are reviewed and approved inside the order workflow.
+
+---
+
+### Phase 10
+
+Notification Module
+
+Develop:
+
+* In-App Notifications
+* Status Updates
+* Order Activity Alerts
+
+**Output**
+
+Customers receive order updates automatically inside the application.
+
+---
+
+### Phase 11
+
+Admin Dashboard
 
 Develop:
 
@@ -161,61 +213,9 @@ Administrator can control the business.
 
 ---
 
-### Phase 9
-
-Chat & Design Approval
-
-Develop:
-
-* Order Chat
-* Image Sharing
-* Design Preview
-* Approval
-* Revision Requests
-
-**Output**
-
-Customer and administrator communicate within each order.
-
----
-
-### Phase 10
-
-Production Workflow
-
-Develop:
-
-* Designing
-* Printing
-* Packing
-* Shipping
-* Delivery Status
-
-**Output**
-
-Orders move through the production process.
-
----
-
-### Phase 11
-
-Notification Module
-
-Develop:
-
-* In-App Notifications
-* Email Notifications
-* Status Updates
-
-**Output**
-
-Customers receive order updates automatically.
-
----
-
 ### Phase 12
 
-Reporting Module
+Reporting
 
 Develop:
 
@@ -231,23 +231,6 @@ Business insights become available.
 ---
 
 ### Phase 13
-
-Image Cleanup
-
-Develop:
-
-* Delete Customer Images
-* Delete Payment Screenshots
-* Delete Preview Images
-* Keep Business Assets
-
-**Output**
-
-Storage usage remains optimized.
-
----
-
-### Phase 14
 
 Testing
 
@@ -265,7 +248,7 @@ Application is stable.
 
 ---
 
-### Phase 15
+### Phase 14
 
 Deployment
 
@@ -279,7 +262,7 @@ Deploy:
 Configure:
 
 * Environment Variables
-* SMTP
+* Order Workspace Settings
 * Production Settings
 
 **Output**
@@ -301,11 +284,7 @@ Authentication
 
 ↓
 
-Products
-
-↓
-
-Templates
+Product Management
 
 ↓
 
@@ -313,19 +292,19 @@ Customer Module
 
 ↓
 
-Orders
+Product Customization
 
 ↓
 
-Payments
+Order Management
 
 ↓
 
-Admin Dashboard
+Payment Module
 
 ↓
 
-Chat
+Order Workspace
 
 ↓
 
@@ -333,11 +312,19 @@ Design Approval
 
 ↓
 
-Notifications
+Notification Module
 
 ↓
 
-Reports
+Admin Dashboard
+
+↓
+
+Reporting
+
+↓
+
+Testing
 
 ↓
 
@@ -375,7 +362,7 @@ The project is considered complete when:
 * Payments can be verified.
 * Design approval workflow functions correctly.
 * Order tracking is available.
-* Notifications are working.
+* In-app notifications and Order Workspace chat are working.
 * Temporary images are automatically cleaned.
 * The application is deployed successfully.
 * All modules pass testing.

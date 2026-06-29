@@ -20,7 +20,7 @@ The system consists of:
 * FastAPI backend exposing REST APIs.
 * PostgreSQL database for structured data.
 * Cloudinary for image storage.
-* Gmail SMTP for email notifications.
+* Order Workspace for in-app communication and notifications.
 
 ---
 
@@ -53,7 +53,7 @@ The frontend is responsible for rendering user interfaces, handling navigation, 
 
 Purpose:
 
-The backend contains all business logic, validation, authentication, database operations, and integrations with storage and email services.
+The backend contains all business logic, validation, authentication, database operations, and integrations with storage and the Order Workspace.
 
 ---
 
@@ -92,17 +92,17 @@ The backend stores only Cloudinary URLs and public IDs in the database.
 
 ---
 
-## Email Service
+## Communication & Notifications
 
-Gmail SMTP
+Order Workspace + In-App Chat
 
 Used for:
 
-* Registration confirmation
-* Order confirmation
-* Payment verification
-* Design approval notifications
-* Delivery confirmation
+* Order discussion
+* Payment verification updates
+* Design preview review
+* Revision requests
+* Production and delivery updates
 
 ---
 
@@ -124,7 +124,7 @@ FastAPI Backend
  ┌──────┼───────────────┐
  │      │               │
  ▼      ▼               ▼
-Database Cloudinary    SMTP
+Supabase PostgreSQL Cloudinary
 ```
 
 Responsibilities:
@@ -133,7 +133,7 @@ Responsibilities:
 * FastAPI processes business logic.
 * PostgreSQL stores application data.
 * Cloudinary stores files.
-* SMTP delivers emails.
+* The backend manages the Order Workspace, chat, notifications, and design approval flow.
 
 Each layer has a single responsibility, reducing coupling and improving maintainability.
 
@@ -175,7 +175,7 @@ Responsible for:
 * Business Logic
 * Database Operations
 * File Uploads
-* Email Service
+* Order Workspace & Notifications
 * API Endpoints
 
 ---
@@ -387,7 +387,7 @@ Examples:
 * Database connection
 * Environment settings
 * Cloudinary configuration
-* SMTP configuration
+* Order Workspace configuration
 
 ---
 
@@ -969,9 +969,9 @@ Cloudinary.
 
 ---
 
-## Email
+## Communication
 
-Gmail SMTP.
+Order Workspace + In-App Chat.
 
 ---
 
@@ -989,8 +989,6 @@ Backend → Render
 Database → Supabase
 
 Storage → Cloudinary
-
-Email → Gmail SMTP
 ```
 
 All secrets shall be managed using environment variables.
