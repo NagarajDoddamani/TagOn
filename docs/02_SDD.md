@@ -364,7 +364,6 @@ Examples:
 * Create Order
 * Verify Payment
 * Upload Design
-* Send Email
 
 All application rules are implemented here.
 
@@ -491,7 +490,7 @@ These standards help both developers and AI coding agents produce consistent, ma
 
 The database stores only structured application data. All uploaded images and files are stored in Cloudinary, while the database stores only their URLs and public IDs.
 
-The database shall maintain relationships between users, products, templates, orders, payments, chats, and notifications.
+The database shall maintain relationships between users, products, templates, orders, payments, chats, notifications, activity logs, and order status history.
 
 ---
 
@@ -510,6 +509,8 @@ Fields:
 * Password
 * Role
 * Status
+* Is Deleted
+* Deleted At
 * Created At
 
 ---
@@ -524,6 +525,8 @@ Fields:
 * Category Name
 * Description
 * Status
+* Is Deleted
+* Deleted At
 
 ---
 
@@ -541,6 +544,8 @@ Fields:
 * Product Type
 * Customizable
 * Status
+* Is Deleted
+* Deleted At
 
 ---
 
@@ -573,9 +578,11 @@ Fields:
 * Template ID
 * Product ID
 * Template Name
-* Preview Image
+* Preview Image (Cloudinary URL)
 * Maximum Upload Count
 * Status
+* Is Deleted
+* Deleted At
 
 ---
 
@@ -594,7 +601,8 @@ Fields:
 * Total Amount
 * Payment Status
 * Order Status
-* Delivery Address
+* Delivery Address (stored as structured data within the order)
+* Customization Notes
 * Created At
 
 ---
@@ -625,8 +633,10 @@ Fields:
 * Order ID
 * Sender
 * Message
-* Attachment URL
+* Attachment URL (customer reference images, additional design references)
 * Created At
+
+Design preview images are managed separately through the order workflow and are not stored as chat attachments.
 
 ---
 
@@ -645,6 +655,42 @@ Fields:
 
 ---
 
+### ActivityLogs
+
+Records important system activities for auditing and troubleshooting.
+
+Fields:
+
+* Log ID
+* User ID
+* Action
+* Entity Type
+* Entity ID
+* Details
+* Timestamp
+
+Logged actions include: Login, Registration, Product Creation, Product Update, Order Creation, Payment Verification, Status Change, Design Approval, Delivery, Cancellation, Soft Delete.
+
+---
+
+### OrderStatusHistory
+
+Maintains the complete status timeline for every order.
+
+Fields:
+
+* History ID
+* Order ID
+* Previous Status
+* New Status
+* Updated By
+* Remarks
+* Timestamp
+
+The current order status is stored in the Orders table. This table preserves the full status change history.
+
+---
+
 ## Relationships
 
 ```text
@@ -656,9 +702,12 @@ User
  │      ├── Variant
  │      ├── Template
  │      ├── Payment
- │      └── Chat
+ │      ├── Chat
+ │      └── OrderStatusHistory
  │
- └── Notifications
+ ├── Notifications
+ │
+ └── ActivityLogs
 ```
 
 ---
@@ -676,8 +725,6 @@ Each module has its own API group.
 * Register
 * Login
 * Logout
-* Forgot Password
-* Reset Password
 
 ---
 
@@ -747,7 +794,7 @@ Each module has its own API group.
 
 The application follows a predefined workflow.
 
-## Customer Flow
+## Customer Flow — Customized Products
 
 ```text
 Register
@@ -782,6 +829,48 @@ Enter Notes
 
 ↓
 
+Enter Delivery Address
+
+↓
+
+Payment
+
+↓
+
+Upload Screenshot
+
+↓
+
+Submit Order
+```
+
+## Customer Flow — Ready-Made Products
+
+```text
+Register
+
+↓
+
+Login
+
+↓
+
+Browse Products
+
+↓
+
+Select Product
+
+↓
+
+Select Variant (if available)
+
+↓
+
+Enter Delivery Address
+
+↓
+
 Payment
 
 ↓
@@ -795,7 +884,7 @@ Submit Order
 
 ---
 
-## Admin Flow
+## Admin Flow — Customized Products
 
 ```text
 Receive Order
@@ -819,6 +908,28 @@ Customer Approval
 ↓
 
 Printing
+
+↓
+
+Packing
+
+↓
+
+Shipping
+
+↓
+
+Delivery
+```
+
+## Admin Flow — Ready-Made Products
+
+```text
+Receive Order
+
+↓
+
+Verify Payment
 
 ↓
 

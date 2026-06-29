@@ -220,7 +220,7 @@ Instead:
 * Customer completes payment using any UPI application.
 * Customer uploads payment screenshot.
 * Customer optionally enters transaction ID.
-* Order enters "Payment Verification" state.
+* Order enters "Payment Pending Verification" state.
 
 The business manually verifies payment.
 
@@ -261,6 +261,7 @@ Customer can track the order using the dashboard.
 
 Order progresses through statuses:
 
+* Payment Pending Verification
 * Payment Verified
 * Designing
 * Approval Pending
@@ -269,6 +270,8 @@ Order progresses through statuses:
 * Packing
 * Shipped
 * Delivered
+* Cancelled
+* Archived
 
 ---
 
@@ -282,6 +285,8 @@ The system automatically deletes temporary customer assets:
 * Design preview images
 * Payment screenshots
 
+Cleanup is performed by a scheduled background process that runs at configured intervals.
+
 The following records remain permanently:
 
 * Customer account
@@ -290,6 +295,8 @@ The following records remain permanently:
 * Chat messages (text only)
 * Invoice
 * Order status timeline
+* Activity logs
+* Cancelled order records
 
 This minimizes storage usage while preserving business records.
 
@@ -367,17 +374,19 @@ Administrator responsibilities include:
 
 Administrator can access all business data.
 
+The administrator account cannot be registered from the application. The first administrator account is created using a database seed script or a startup initialization process.
+
 ---
 
 # 5. Business Workflow
 
-The following workflow defines the complete lifecycle of every customized order.
+The following workflows define the complete lifecycle of every order.
 
-This workflow is mandatory and should be implemented exactly as specified.
+These workflows are mandatory and should be implemented exactly as specified.
 
 ---
 
-## Customer Workflow
+## Customized Product Workflow
 
 1. Customer registers an account.
 2. Customer logs into the system.
@@ -388,12 +397,29 @@ This workflow is mandatory and should be implemented exactly as specified.
 7. Customer uploads required images.
 8. Customer enters customization notes.
 9. Customer enters delivery address.
-10. Customer reviews order summary.
-11. Customer scans TagOn QR code.
-12. Customer completes UPI payment.
-13. Customer uploads payment screenshot.
-14. Customer submits the order.
-15. Order status becomes **Payment Verification**.
+10. Customer scans TagOn QR code.
+11. Customer completes UPI payment.
+12. Customer uploads payment screenshot.
+13. Customer submits the order.
+14. Order status becomes **Payment Pending Verification**.
+
+---
+
+## Ready-Made Product Workflow
+
+1. Customer registers an account.
+2. Customer logs into the system.
+3. Customer browses products.
+4. Customer selects a ready-made product.
+5. Customer selects variant (if available).
+6. Customer enters delivery address.
+7. Customer scans TagOn QR code.
+8. Customer completes UPI payment.
+9. Customer uploads payment screenshot.
+10. Customer submits the order.
+11. Order status becomes **Payment Pending Verification**.
+
+No template selection, image upload, customization notes, or design approval is required.
 
 ---
 
@@ -403,8 +429,8 @@ This workflow is mandatory and should be implemented exactly as specified.
 2. Administrator verifies payment.
 3. If payment is invalid, the administrator rejects the payment and requests correction.
 4. If payment is valid, the administrator approves the payment.
-5. Order status changes to **Designing**.
-6. Order chat becomes available.
+5. Order status changes to **Designing** (for customized products) or **Packing** (for ready-made products).
+6. Order chat becomes available (customized orders only).
 7. Designer prepares the customized artwork.
 8. Designer uploads design preview.
 9. Customer receives notification.
@@ -436,9 +462,24 @@ This workflow is mandatory and should be implemented exactly as specified.
 1. Order is shipped.
 2. Customer tracks delivery.
 3. Product is delivered.
-4. Order is marked as completed.
-5. Temporary uploaded files are automatically removed after the retention period.
+4. Order is marked as **Delivered**.
+5. After the configured retention period, temporary uploaded files are automatically removed.
 6. Permanent business records remain available for future reference.
+
+---
+
+## Cancellation Rules
+
+### Customer Cancellation
+1. Customer can cancel an order only before payment verification.
+2. The order status changes to **Cancelled**.
+3. No further action is required.
+
+### Administrator Cancellation
+1. Administrator can cancel an order at any stage of the lifecycle.
+2. Administrator must provide a cancellation reason.
+3. The order status changes to **Cancelled**.
+4. Cancelled orders remain stored permanently for business records.
 
 ---
 
@@ -451,8 +492,13 @@ The following business rules are mandatory:
 * Printing must never begin before customer approval.
 * Every customized order must be associated with a selected template.
 * Every uploaded image must belong to a specific order.
+* Ready-made products do not require template selection, image upload, or design approval.
+* Customers can cancel only before payment verification.
+* Administrators can cancel at any stage and must provide a cancellation reason.
+* Cancelled orders remain stored permanently.
 * Every order must maintain a complete status timeline.
 * Temporary files must be automatically cleaned after the configured retention period.
+* Cleanup is performed by a scheduled background process.
 * Permanent business records must never be deleted automatically.
 * All order communication must remain linked to the corresponding order to maintain a complete project history.
 
@@ -508,12 +554,12 @@ Supported features:
 
 * Login
 * Logout
-* Forgot Password
-* Password Reset
 * Session Management
 * JWT Authentication
 
 Only authenticated users can place orders.
+
+Password recovery (Forgot Password / Reset Password) is not included in Version 1 and may be introduced in a future version.
 
 ---
 
@@ -728,14 +774,17 @@ Customers shall track order progress.
 
 Supported statuses:
 
-* Payment Verification
+* Payment Pending Verification
+* Payment Verified
 * Designing
-* Design Approval
+* Approval Pending
+* Approved
 * Printing
 * Packing
 * Shipped
 * Delivered
 * Cancelled
+* Archived
 
 Each status change shall be timestamped.
 
@@ -926,12 +975,53 @@ The system shall maintain logs for important business events including:
 * Status Changes
 * Design Approval
 * Delivery Completion
+* Cancellation
+* Order Archival
+* Image Cleanup Execution
 
 These logs assist in administration, troubleshooting, and future auditing.
 
+The system shall also log soft delete operations for products, categories, templates, and users.
+
 ---
 
-# 6.29 Functional Requirement Summary
+# 6.29 Soft Delete Policy
+
+## Overview
+
+The system shall implement a soft delete strategy for specific entity types to preserve data integrity and enable recovery.
+
+## Entities Using Soft Delete
+
+The following entities shall use soft delete:
+
+* Products
+* Categories
+* Templates
+* Users
+
+When a soft delete operation is performed, the system shall:
+
+* Mark the record as deleted instead of physically removing it.
+* Maintain a deleted_at timestamp.
+* Exclude soft-deleted records from normal application queries.
+
+## Entities That Must Never Be Deleted
+
+The following entities must never be deleted (physically or logically):
+
+* Orders
+* Payments
+* Notifications
+* Chat Messages
+* Activity Logs
+* Order Status History
+
+Only temporary uploaded files (customer images, payment screenshots, design previews) are physically deleted from Cloudinary after the configured retention period.
+
+---
+
+# 6.30 Functional Requirement Summary
 
 The TagOn system shall provide a complete end-to-end customized gift ordering workflow consisting of secure user authentication, product browsing, customization, image upload, QR-based payment, manual payment verification, order-specific communication, design approval, production management, delivery tracking, reporting, and administrative control. Every functional module described in this section shall be implemented and integrated to provide a seamless customer experience and an efficient business management platform.
 
@@ -1054,7 +1144,6 @@ The system should support:
 * Continuous administrator access.
 * Reliable database connectivity.
 * Reliable image storage.
-* Reliable email delivery.
 
 The application should recover automatically after temporary hosting interruptions.
 
@@ -1196,6 +1285,8 @@ Temporary storage shall include:
 * Payment Screenshots
 
 Temporary files shall be automatically deleted after successful delivery and the configured retention period.
+
+Cleanup is performed by a scheduled background process that runs at configured intervals.
 
 Business records shall remain permanently available.
 
@@ -1382,8 +1473,6 @@ Authenticate customers and provide access to protected pages.
 * Password verification.
 * Remember session.
 * Logout.
-* Forgot password.
-* Password reset.
 
 After successful login the customer shall be redirected to the Home page.
 
@@ -1594,7 +1683,7 @@ The system shall:
 * Store uploaded images.
 * Store payment screenshot.
 * Store customization details.
-* Set the order status to **Payment Verification**.
+* Set the order status to **Payment Pending Verification**.
 
 The Order Workspace shall open for the customer, allowing them to begin communication with TagOn and track the order status.
 
@@ -1677,16 +1766,17 @@ Customers shall monitor the complete order lifecycle.
 
 Supported statuses include:
 
-* Payment Verification
+* Payment Pending Verification
 * Payment Verified
 * Designing
-* Design Approval Pending
+* Approval Pending
 * Approved
 * Printing
 * Packing
 * Shipped
 * Delivered
 * Cancelled
+* Archived
 
 Each status shall include a timestamp.
 
@@ -1836,12 +1926,17 @@ Administrators can:
 
 Administrators shall update order status through:
 
+* Payment Pending Verification
+* Payment Verified
 * Designing
 * Approval Pending
+* Approved
 * Printing
 * Packing
 * Shipped
 * Delivered
+* Cancelled
+* Archived
 
 Customers receive notifications for every update.
 
@@ -1893,8 +1988,6 @@ The module shall support:
 * User Registration
 * User Login
 * Logout
-* Forgot Password
-* Password Reset
 
 ---
 
@@ -2026,13 +2119,14 @@ The Order Management Module controls the complete order lifecycle.
 * Create orders
 * View orders
 * Update order status
-* Cancel orders
+* Cancel orders (with reason)
 * View order history
 * Search and filter orders
+* Archive delivered orders
 
 ### Order Status
 
-* Payment Verification
+* Payment Pending Verification
 * Payment Verified
 * Designing
 * Approval Pending
@@ -2042,10 +2136,17 @@ The Order Management Module controls the complete order lifecycle.
 * Shipped
 * Delivered
 * Cancelled
+* Archived
+
+### Cancellation Rules
+
+* Customers can cancel only before payment verification.
+* Administrators can cancel at any stage and must provide a cancellation reason.
+* Cancelled orders remain stored permanently.
 
 ### Summary
 
-Every order progresses through a predefined workflow from creation to delivery.
+Every order progresses through a predefined workflow from creation to archival.
 
 ---
 
@@ -2084,8 +2185,7 @@ Each customized order includes a dedicated chat workspace for communication betw
 ### Features
 
 * Text messaging
-* Image sharing
-* Design preview upload
+* File attachment upload (customer reference images, additional design references)
 * Revision requests
 * Design approval
 
@@ -2093,6 +2193,8 @@ Each customized order includes a dedicated chat workspace for communication betw
 
 * Chat is available only after payment verification.
 * Every chat belongs to one order.
+* Chat attachments include customer reference images and additional design references.
+* Design preview images are managed separately as part of the order workflow and are not ordinary chat attachments.
 * Printing cannot begin until the customer approves the design.
 
 ### Summary
@@ -2152,31 +2254,11 @@ The system manages both permanent business assets and temporary customer files.
 
 * Temporary files shall be automatically deleted after the configured retention period.
 * Permanent assets shall never be deleted automatically.
+* Cleanup is performed by a scheduled background process that runs at configured intervals.
 
 ### Summary
 
 This module optimizes storage usage while preserving important business information.
-
----
-
-# 19. Email System
-
-## Overview
-
-The Email System sends automatic emails for important events.
-
-### Emails
-
-* Registration confirmation
-* Order confirmation
-* Payment verification
-* Design uploaded
-* Order completed
-* Delivery confirmation
-
-### Summary
-
-The email system improves customer communication without requiring manual follow-up.
 
 ---
 

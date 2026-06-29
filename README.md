@@ -84,6 +84,8 @@ The project provides both a **Customer Portal** and an **Admin Dashboard** to ma
 
 # Project Workflow
 
+## Customized Products Workflow
+
 ```text
 Customer Login
 
@@ -101,7 +103,7 @@ Select Variant
 
 ↓
 
-Select Template (For Custom Products)
+Select Template
 
 ↓
 
@@ -114,10 +116,6 @@ Enter Customization Notes
 ↓
 
 Enter Delivery Address
-
-↓
-
-Review Order
 
 ↓
 
@@ -154,6 +152,60 @@ Customer Approves or Requests Changes
 ↓
 
 Printing
+
+↓
+
+Packing
+
+↓
+
+Shipping
+
+↓
+
+Delivered
+```
+
+## Ready-Made Products Workflow
+
+```text
+Customer Login
+
+↓
+
+Browse Products
+
+↓
+
+Select Product
+
+↓
+
+Select Variant (if available)
+
+↓
+
+Enter Delivery Address
+
+↓
+
+Scan QR Code & Complete Payment
+
+↓
+
+Upload Payment Screenshot
+
+↓
+
+Submit Order
+
+↓
+
+Order Workspace Opens
+
+↓
+
+Administrator Verifies Payment
 
 ↓
 
@@ -242,16 +294,20 @@ Developers should review these documents before starting implementation.
 # Business Rules
 
 * Customers must be registered before accessing products.
-* Custom products require template selection.
-* Images must be uploaded before placing an order.
+* Ready-made products do not require template selection, image upload, or design approval.
+* Custom products require template selection, image upload, and design approval.
 * Payment is completed using TagOn's QR code.
 * Orders remain pending until payment verification.
 * Design work begins only after payment verification.
 * Printing begins only after customer approval.
+* Customers can cancel an order only before payment verification.
+* Administrators can cancel an order at any stage and must provide a cancellation reason.
+* Cancelled orders remain stored permanently.
 * Each order has its own dedicated Order Workspace containing chat, uploads, payment details, timeline, and design preview.
 * The Order Workspace remains available throughout the order lifecycle and is archived after delivery.
-* Temporary customer-uploaded images and payment screenshots are automatically removed after the configured retention period.
-* Order history, messages, and business records remain stored permanently.
+* Temporary customer-uploaded images, payment screenshots, and design preview images are automatically removed after the configured retention period.
+* Order history, messages, activity logs, status history, and business records remain stored permanently.
+* Administrators cannot register from the application. The first administrator account is created using a database seed or startup initialization script.
 
 ---
 
