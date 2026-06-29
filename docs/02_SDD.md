@@ -24,6 +24,18 @@ The system consists of:
 
 ---
 
+## API-First Architecture
+
+The FastAPI backend is developed as a standalone REST API service and is completely independent of the frontend. The backend is the core platform of the system and contains all business logic, validation, authentication, payment verification, notifications, order processing, chat, and design approval workflows.
+
+The React web application is only the first client application. Future client applications, including a Flutter Android application, a Flutter iOS application, desktop applications, and third-party integrations, must reuse the same backend, APIs, database, storage, and business workflows.
+
+The frontend is responsible only for presenting user interfaces, collecting user input, and consuming backend APIs. No frontend application should communicate directly with the database or Cloudinary. All business rules and data operations must be handled by FastAPI.
+
+This architecture ensures that adding a new client application does not require rewriting the backend.
+
+---
+
 # 2. Technology Stack
 
 ## Frontend
@@ -111,29 +123,35 @@ Used for:
 The application follows a layered architecture.
 
 ```text
-Customer/Admin
+Client Applications
+
+- React Web
+- Flutter Android
+- Flutter iOS (Future)
+- Future Clients
         │
         ▼
-React Frontend
-        │
-REST API (HTTPS)
+REST API
         │
         ▼
 FastAPI Backend
         │
- ┌──────┼───────────────┐
- │      │               │
- ▼      ▼               ▼
-Supabase PostgreSQL Cloudinary
+        ▼
+Supabase PostgreSQL
+        │
+        ▼
+Cloudinary
 ```
 
 Responsibilities:
 
-* React handles UI and user interactions.
-* FastAPI processes business logic.
+* React and future clients handle UI and user interactions.
+* FastAPI processes business logic and exposes REST APIs.
 * PostgreSQL stores application data.
 * Cloudinary stores files.
-* The backend manages the Order Workspace, chat, notifications, and design approval flow.
+* The backend manages the Order Workspace, chat, notifications, design approval, and all core business workflows.
+
+The FastAPI backend is the only component that communicates with the database and storage services. This ensures that all client applications share the same core system.
 
 Each layer has a single responsibility, reducing coupling and improving maintainability.
 
@@ -172,11 +190,28 @@ Contains the FastAPI application.
 Responsible for:
 
 * Authentication
-* Business Logic
-* Database Operations
-* File Uploads
-* Order Workspace & Notifications
-* API Endpoints
+* Authorization
+* User Management
+* Product Management
+* Category Management
+* Variant Management
+* Template Management
+* Order Processing
+* Payment Verification
+* Chat
+* Notifications
+* Design Approval
+* Image Upload
+* Image Cleanup
+* Delivery Tracking
+* Reports
+* Business Rules
+* Validation
+* Database Access
+* File Management
+* Security
+
+The backend is an independent service and must not be treated as part of the React application. It remains the single source of truth for the platform.
 
 ---
 
@@ -421,11 +456,14 @@ The following principles should be followed throughout development:
 * Reusable components.
 * Service-oriented backend.
 * RESTful API design.
+* Backend Independence.
 * Consistent naming conventions.
 * Minimal code duplication.
 * Clear validation rules.
 * Environment-based configuration.
 * Easy future scalability.
+
+Backend Independence means that business logic belongs only in FastAPI. React, Flutter, or any future client should never implement business rules. Clients only send requests and display responses. The backend remains the single source of truth.
 
 These principles ensure that the codebase remains clean, maintainable, and suitable for long-term development.
 

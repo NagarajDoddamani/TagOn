@@ -182,6 +182,14 @@ docs/            # Project Documentation
 
 ---
 
+# Architecture Philosophy
+
+The backend is designed using an API-first architecture. The React application is the first client, but it is not the only one. Future mobile applications, desktop applications, and third-party integrations will reuse the same backend services.
+
+The backend is the single source of truth for the platform. All business rules, validation, authentication, order processing, notifications, chat, and design approval are handled by FastAPI. The frontend is responsible only for user interaction and API communication.
+
+---
+
 # Documentation
 
 The project documentation is located in the **docs/** directory.

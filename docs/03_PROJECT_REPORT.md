@@ -350,6 +350,46 @@ The implementation should follow these guidelines:
 * Keep temporary files separate from permanent files.
 * Maintain clean, modular, and readable code.
 
+### Backend Development Principles
+
+* Develop the backend as a standalone application.
+* Every feature must be exposed through REST APIs.
+* Frontend applications must never access the database directly.
+* Frontend applications must never contain business logic.
+* Validation must always occur in the backend.
+* Authentication must always be verified in the backend.
+* Future client applications should reuse existing APIs without backend modifications.
+
+The backend should remain reusable across multiple platforms and client applications.
+
+---
+
+## Version Strategy
+
+### Version 1
+
+* React Web Application
+* FastAPI Backend
+* Supabase
+* Cloudinary
+
+### Version 2
+
+* Flutter Android Application
+* Same FastAPI Backend
+* Same REST APIs
+* Same Database
+* Same Cloudinary Storage
+
+### Version 3 (Future)
+
+* Flutter iOS Application
+* Same Backend
+* Same APIs
+* Same Database
+
+Future desktop or third-party applications should also consume the same APIs. No business logic should be rewritten for future versions.
+
 ---
 
 # 5. Completion Criteria
