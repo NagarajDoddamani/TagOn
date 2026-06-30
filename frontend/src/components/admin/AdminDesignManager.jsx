@@ -91,7 +91,9 @@ export default function AdminDesignManager({ orderId, isCustomized, orderStatus,
           {selectedPreview && (
             <div className="px-4">
               <img src={selectedPreview.image_url} alt={`Design v${selectedPreview.version}`}
-                   className="max-w-full max-h-[400px] rounded object-contain bg-gray-50" />
+                   loading="lazy"
+                   className="max-w-full max-h-[400px] rounded object-contain bg-gray-50"
+                   onError={(e) => { e.target.style.display = 'none'; }} />
               {selectedPreview.notes && (
                 <p className="mt-2 text-sm text-gray-600 italic">{selectedPreview.notes}</p>
               )}

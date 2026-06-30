@@ -52,6 +52,7 @@ class OrderResponse(BaseModel):
 class OrderListResponse(BaseModel):
     id: str
     product_name: Optional[str]
+    customer_name: Optional[str] = None
     total_amount: float
     order_status: str
     payment_status: str

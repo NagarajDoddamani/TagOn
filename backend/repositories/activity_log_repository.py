@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from models.activity_log import ActivityLog
 from typing import Optional
+from utils.pagination import paginate
 
 
 class ActivityLogRepository:
@@ -19,5 +20,8 @@ class ActivityLogRepository:
         self.db.commit()
         return log
 
-    def get_all(self, limit: int = 100) -> list:
-        return self.db.query(ActivityLog).order_by(ActivityLog.timestamp.desc()).limit(limit).all()
+    def get_all(self, limit: int = 100, page: Optional[int] = None, per_page: int = 20) -> list:
+        query = self.db.query(ActivityLog).order_by(ActivityLog.timestamp.desc())
+        if page is not None:
+            return paginate(query, page=page, per_page=per_page)
+        return query.limit(limit).all()

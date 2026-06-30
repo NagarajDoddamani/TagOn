@@ -13,7 +13,7 @@ export default function HomePage() {
     const load = async () => {
       try {
         const [productsData, categoriesData] = await Promise.all([
-          productService.getProducts(),
+          productService.getProducts(undefined, undefined, undefined, true, true),
           productService.getCategories(),
         ])
         setProducts(productsData)

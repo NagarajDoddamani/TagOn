@@ -135,7 +135,7 @@ test("Health Check", "GET", "/health", 200)
 print("\n--- Auth ---")
 r = test("Register", "POST", "/auth/register", 200, json_data={
     "name": "Test Customer", "email": TEST_EMAIL,
-    "phone": TEST_PHONE, "password": "test123", "confirm_password": "test123"
+    "phone": TEST_PHONE, "password": "Test@123", "confirm_password": "Test@123"
 })
 customer_token = None
 if r and r.status_code == 200:
@@ -144,12 +144,12 @@ if r and r.status_code == 200:
 # 2. Duplicate register
 test("Register Duplicate", "POST", "/auth/register", 409, json_data={
     "name": "Test Customer", "email": TEST_EMAIL,
-    "phone": TEST_PHONE, "password": "test123", "confirm_password": "test123"
+    "phone": TEST_PHONE, "password": "Test@123", "confirm_password": "Test@123"
 })
 
 # 3. Login
 r = test("Login", "POST", "/auth/login", 200, json_data={
-    "email": TEST_EMAIL, "password": "test123"
+    "email": TEST_EMAIL, "password": "Test@123"
 })
 if r and r.status_code == 200:
     customer_token = r.json()["access_token"]

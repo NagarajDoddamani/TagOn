@@ -20,11 +20,21 @@ export const productService = {
     await api.delete(`/products/categories/${id}`)
   },
 
-  async getProducts(categoryId, productType, search) {
+  async getProducts(categoryId, productType, search, featured, isVisible, tags) {
     const params = new URLSearchParams()
     if (categoryId) params.append('category_id', categoryId)
     if (productType) params.append('product_type', productType)
     if (search) params.append('search', search)
+    if (featured !== undefined) params.append('featured', featured)
+    if (isVisible !== undefined) params.append('is_visible', isVisible)
+    if (tags) params.append('tags', tags.join(','))
+    const { data } = await api.get(`/products?${params}`)
+    return data
+  },
+
+  async getProductsPaginated(paramsObj = {}) {
+    const params = new URLSearchParams()
+    Object.entries(paramsObj).forEach(([k, v]) => { if (v !== undefined && v !== null) params.append(k, v) })
     const { data } = await api.get(`/products?${params}`)
     return data
   },
@@ -85,5 +95,20 @@ export const productService = {
 
   async deleteTemplate(templateId) {
     await api.delete(`/products/templates/${templateId}`)
+  },
+
+  async toggleFeatured(id, featured) {
+    const { data } = await api.put(`/products/${id}/featured?featured=${featured}`)
+    return data
+  },
+
+  async toggleVisibility(id, visible) {
+    const { data } = await api.put(`/products/${id}/visibility?visible=${visible}`)
+    return data
+  },
+
+  async setTags(id, tags) {
+    const { data } = await api.put(`/products/${id}/tags`, tags)
+    return data
   },
 }

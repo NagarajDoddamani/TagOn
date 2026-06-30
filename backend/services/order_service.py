@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy.orm import Session
 from core.exceptions import NotFoundException, ForbiddenException
 from repositories.order_repository import OrderRepository, OrderStatusHistoryRepository
@@ -113,8 +114,8 @@ class OrderService:
     def get_customer_orders(self, customer_id: str):
         return self.order_repo.get_by_customer(customer_id)
 
-    def get_all_orders(self, status: str = None):
-        return self.order_repo.get_all(status=status)
+    def get_all_orders(self, status: str = None, page: Optional[int] = None, per_page: int = 20):
+        return self.order_repo.get_all(status=status, page=page, per_page=per_page)
 
     def update_order_status(self, order_id: str, new_status: str, updated_by: str, remarks: str = None):
         order = self.order_repo.get_by_id(order_id)

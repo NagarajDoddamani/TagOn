@@ -72,7 +72,7 @@ export default function AdminChatWindow({ orderId }) {
                     <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer"
                        className="text-sm underline block mt-1">
                       {msg.attachment_type?.startsWith('image/') ? (
-                        <img src={msg.attachment_url} alt="attachment" className="max-w-[200px] rounded mt-1" />
+                        <img src={msg.attachment_url} alt="attachment" loading="lazy" className="max-w-[200px] rounded mt-1" onError={(e) => { e.target.style.display = 'none'; }} />
                       ) : (
                         'View Attachment'
                       )}

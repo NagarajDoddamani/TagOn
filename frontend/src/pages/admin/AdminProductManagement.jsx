@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { productService } from '../../services/product.service'
 import { formatCurrency } from '../../utils/helpers'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import { toast } from '../../store/toast.store'
 
 export default function AdminProductManagement() {
   const [products, setProducts] = useState([])
@@ -81,7 +82,7 @@ export default function AdminProductManagement() {
       resetForm()
       loadData()
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to save product')
+      toast.error(err.response?.data?.detail || 'Failed to save product')
     }
   }
 
@@ -137,7 +138,7 @@ export default function AdminProductManagement() {
       resetCategoryForm()
       loadData()
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to save category')
+      toast.error(err.response?.data?.detail || 'Failed to save category')
     }
   }
 
@@ -192,7 +193,7 @@ export default function AdminProductManagement() {
       setEditingVariant(null)
       await loadVariants(showVariantPanel)
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to save variant')
+      toast.error(err.response?.data?.detail || 'Failed to save variant')
     }
   }
 
@@ -224,7 +225,7 @@ export default function AdminProductManagement() {
       setShowTemplateForm(null)
       loadData()
     } catch (err) {
-      alert(err.response?.data?.detail || 'Failed to create template')
+      toast.error(err.response?.data?.detail || 'Failed to create template')
     }
   }
 
@@ -232,6 +233,44 @@ export default function AdminProductManagement() {
     if (!confirm('Delete this template?')) return
     try {
       await productService.deleteTemplate(templateId)
+      loadData()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleToggleFeatured = async (id, current) => {
+    try {
+      await productService.toggleFeatured(id, !current)
+      loadData()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleToggleVisibility = async (id, current) => {
+    try {
+      await productService.toggleVisibility(id, !current)
+      loadData()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const [editingTags, setEditingTags] = useState(null)
+  const [tagsInput, setTagsInput] = useState('')
+
+  const handleEditTags = (p) => {
+    setEditingTags(p.id)
+    setTagsInput((p.tags || []).join(', '))
+  }
+
+  const handleSaveTags = async () => {
+    if (!editingTags) return
+    try {
+      const tagList = tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
+      await productService.setTags(editingTags, tagList)
+      setEditingTags(null)
       loadData()
     } catch (err) {
       console.error(err)
@@ -260,8 +299,8 @@ export default function AdminProductManagement() {
           <div className="mb-4">
             <button onClick={() => handleOpenCategoryForm()} className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">New Category</button>
           </div>
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <table className="w-full">
+          <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+            <table className="w-full min-w-[500px]">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
@@ -272,7 +311,7 @@ export default function AdminProductManagement() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {categories.map((c) => (
-                  <tr key={c.id}>
+                  <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">{c.name}</td>
                     <td className="px-6 py-4 text-gray-500">{c.description || '-'}</td>
                     <td className="px-6 py-4"><span className="px-2 py-1 rounded text-xs bg-green-100 text-green-800">{c.status}</span></td>
@@ -290,8 +329,8 @@ export default function AdminProductManagement() {
 
       {/* ---- Category Form Modal ---- */}
       {showCategoryForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md animate-slide-up">
             <h2 className="text-xl font-bold mb-4">{editingCategory ? 'Edit Category' : 'Create Category'}</h2>
             <form onSubmit={handleSaveCategory} className="space-y-4">
               <input value={catName} onChange={(e) => setCatName(e.target.value)} placeholder="Category Name" required className="w-full px-3 py-2 border rounded-md" />
@@ -307,34 +346,69 @@ export default function AdminProductManagement() {
 
       {/* ---- Product Tab ---- */}
       {activeTab === 'products' && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <table className="w-full">
+        <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+          <table className="w-full min-w-[800px]">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Feat</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Vis</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tags</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {products.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-6 py-4">{p.name}</td>
-                  <td className="px-6 py-4">{p.category?.name}</td>
-                  <td className="px-6 py-4">{formatCurrency(p.base_price)}</td>
-                  <td className="px-6 py-4">
+                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-4">{p.name}</td>
+                  <td className="px-4 py-4">{p.category?.name}</td>
+                  <td className="px-4 py-4">{formatCurrency(p.base_price)}</td>
+                  <td className="px-4 py-4">
                     <span className={`px-2 py-1 rounded text-xs ${p.customizable ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
                       {p.customizable ? 'Custom' : p.product_type}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-4 text-center">
+                    <button onClick={() => handleToggleFeatured(p.id, p.is_featured)}
+                            className={`text-lg ${p.is_featured ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}
+                            title={p.is_featured ? 'Unmark featured' : 'Mark as featured'}>
+                      ★
+                    </button>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <button onClick={() => handleToggleVisibility(p.id, p.is_visible)}
+                            className={`text-lg ${p.is_visible ? 'text-green-500' : 'text-red-400'}`}
+                            title={p.is_visible ? 'Hide from store' : 'Show in store'}>
+                      {p.is_visible ? '👁' : '🚫'}
+                    </button>
+                  </td>
+                  <td className="px-4 py-4">
+                    {editingTags === p.id ? (
+                      <div className="flex items-center gap-1">
+                        <input value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
+                               className="w-24 px-1 py-0.5 text-xs border rounded" placeholder="tag1, tag2" />
+                        <button onClick={handleSaveTags} className="text-xs text-green-600 font-bold">✓</button>
+                        <button onClick={() => setEditingTags(null)} className="text-xs text-red-600">✕</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 flex-wrap max-w-[150px]">
+                        {(p.tags || []).slice(0, 2).map((t, i) => (
+                          <span key={i} className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{t}</span>
+                        ))}
+                        {(p.tags || []).length > 2 && <span className="text-xs text-gray-400">+{p.tags.length - 2}</span>}
+                        <button onClick={() => handleEditTags(p)} className="text-xs text-gray-400 hover:text-gray-600 ml-1">✎</button>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
                     <div className="flex gap-2 flex-wrap">
                       <button onClick={() => handleEditProduct(p)} className="text-sm text-primary-600 hover:underline">Edit</button>
-                      <button onClick={() => handleOpenVariants(p.id)} className="text-sm text-indigo-600 hover:underline">Variants</button>
-                      <button onClick={() => { setShowTemplateForm(p.id); setTemplateName(''); setMaxUploadCount(1) }} className="text-sm text-purple-600 hover:underline">+Template</button>
-                      <button onClick={() => handleDeleteProduct(p.id)} className="text-sm text-red-600 hover:underline">Delete</button>
+                      <button onClick={() => handleOpenVariants(p.id)} className="text-sm text-indigo-600 hover:underline">Var</button>
+                      <button onClick={() => { setShowTemplateForm(p.id); setTemplateName(''); setMaxUploadCount(1) }} className="text-sm text-purple-600 hover:underline">+Tmpl</button>
+                      <button onClick={() => handleDeleteProduct(p.id)} className="text-sm text-red-600 hover:underline">Del</button>
                     </div>
                   </td>
                 </tr>
@@ -346,8 +420,8 @@ export default function AdminProductManagement() {
 
       {/* ---- Product Form Modal ---- */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-lg">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg animate-slide-up">
             <h2 className="text-xl font-bold mb-4">{editingProduct ? 'Edit Product' : 'Create Product'}</h2>
             <form onSubmit={handleCreateProduct} className="space-y-4">
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Product Name" required className="w-full px-3 py-2 border rounded-md" />
@@ -376,8 +450,8 @@ export default function AdminProductManagement() {
 
       {/* ---- Variant Panel ---- */}
       {showVariantPanel && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-lg">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg animate-slide-up">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Manage Variants</h2>
               <button onClick={() => setShowVariantPanel(null)} className="text-gray-500 text-xl">&times;</button>
@@ -411,8 +485,8 @@ export default function AdminProductManagement() {
 
       {/* ---- Template Form Modal ---- */}
       {showTemplateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md animate-slide-up">
             <h2 className="text-xl font-bold mb-4">Add Template</h2>
             <div className="space-y-4">
               <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder="Template Name" className="w-full px-3 py-2 border rounded-md" />

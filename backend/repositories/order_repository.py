@@ -1,7 +1,10 @@
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_, cast, String
 from models.order import Order
 from models.order_status_history import OrderStatusHistory
+from models.user import User
 from typing import Optional, List
+from utils.pagination import paginate
 
 
 class OrderRepository:
@@ -26,10 +29,47 @@ class OrderRepository:
     def get_by_customer(self, customer_id: str) -> List[Order]:
         return self.db.query(Order).filter(Order.customer_id == customer_id).order_by(Order.created_at.desc()).all()
 
-    def get_all(self, status: Optional[str] = None) -> List[Order]:
+    def get_all(self, status: Optional[str] = None, page: Optional[int] = None, per_page: int = 20):
         query = self.db.query(Order).options(joinedload(Order.customer)).order_by(Order.created_at.desc())
         if status:
             query = query.filter(Order.order_status == status)
+        if page is not None:
+            items, total = paginate(query, page=page, per_page=per_page)
+            return items, total
+        return query.all()
+
+    def search_orders(self, search: Optional[str] = None, status: Optional[str] = None,
+                      payment_status: Optional[str] = None, start_date: Optional[str] = None,
+                      end_date: Optional[str] = None, min_amount: Optional[float] = None,
+                      max_amount: Optional[float] = None, page: Optional[int] = None,
+                      per_page: int = 20):
+        query = self.db.query(Order).options(
+            joinedload(Order.customer), joinedload(Order.product)
+        ).order_by(Order.created_at.desc())
+
+        if status:
+            query = query.filter(Order.order_status == status)
+        if payment_status:
+            query = query.filter(Order.payment_status == payment_status)
+        if start_date:
+            query = query.filter(Order.created_at >= start_date)
+        if end_date:
+            query = query.filter(Order.created_at <= end_date)
+        if min_amount is not None:
+            query = query.filter(Order.total_amount >= min_amount)
+        if max_amount is not None:
+            query = query.filter(Order.total_amount <= max_amount)
+        if search:
+            pattern = f"%{search}%"
+            query = query.filter(
+                or_(
+                    cast(Order.id, String).ilike(pattern),
+                    Order.customer.has(User.name.ilike(pattern)),
+                    Order.customer.has(User.email.ilike(pattern)),
+                )
+            )
+        if page is not None:
+            return paginate(query, page=page, per_page=per_page)
         return query.all()
 
     def update_status(self, order: Order, new_status: str) -> Order:

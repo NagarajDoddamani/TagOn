@@ -111,7 +111,7 @@ export default function OrderDetailPage() {
               <h2 className="text-xl font-semibold mb-4">Uploaded Images</h2>
               <div className="flex flex-wrap gap-3">
                 {order.uploaded_images.map((url, i) => (
-                  <img key={i} src={url} alt={`Upload ${i}`} className="w-32 h-32 object-cover rounded" />
+                  <img key={i} src={url} alt={`Upload ${i}`} loading="lazy" className="w-32 h-32 object-cover rounded" onError={(e) => { e.target.style.display = 'none'; }} />
                 ))}
               </div>
             </div>
@@ -132,7 +132,7 @@ export default function OrderDetailPage() {
                 {payment.screenshot_url && (
                   <div>
                     <p className="font-medium mb-2">Payment Screenshot:</p>
-                    <img src={payment.screenshot_url} alt="Payment Screenshot" className="max-w-xs rounded" />
+                    <img src={payment.screenshot_url} alt="Payment Screenshot" loading="lazy" className="max-w-xs rounded" onError={(e) => { e.target.style.display = 'none'; }} />
                   </div>
                 )}
               </div>

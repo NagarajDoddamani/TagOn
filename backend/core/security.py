@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
@@ -11,6 +12,29 @@ from models.user import User
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+
+def sanitize_input(value: str, max_length: int = 500) -> str:
+    if not value:
+        return value
+    cleaned = re.sub(r"<[^>]*>", "", value)
+    cleaned = cleaned.strip()
+    return cleaned[:max_length]
+
+
+def validate_password_strength(password: str):
+    errors = []
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters")
+    if not re.search(r"[A-Z]", password):
+        errors.append("Password must contain an uppercase letter")
+    if not re.search(r"[a-z]", password):
+        errors.append("Password must contain a lowercase letter")
+    if not re.search(r"\d", password):
+        errors.append("Password must contain a digit")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        errors.append("Password must contain a special character")
+    return errors
 
 
 def hash_password(password: str) -> str:

@@ -89,8 +89,54 @@ class ProductService:
             entity_type="product", entity_id=str(product.id),
         )
 
-    def get_products(self, category_id: Optional[str] = None, product_type: Optional[str] = None, search: Optional[str] = None):
-        return self.product_repo.get_all(category_id=category_id, product_type=product_type, search=search)
+    def get_products(self, category_id: Optional[str] = None, product_type: Optional[str] = None,
+                     search: Optional[str] = None, featured: Optional[bool] = None,
+                     is_visible: Optional[bool] = None, tags: Optional[list[str]] = None,
+                     page: Optional[int] = None, per_page: int = 20):
+        return self.product_repo.get_all(
+            category_id=category_id, product_type=product_type, search=search,
+            featured=featured, is_visible=is_visible, tags=tags,
+            page=page, per_page=per_page,
+        )
+
+    def get_featured_products(self, limit: int = 8):
+        return self.product_repo.get_featured(limit=limit)
+
+    def toggle_featured(self, product_id: str, featured: bool, admin_id: str):
+        product = self.product_repo.get_by_id(product_id)
+        if not product:
+            raise NotFoundException("Product not found")
+        product = self.product_repo.set_featured(product, featured)
+        self.log_repo.create(
+            user_id=admin_id, action="product_featured_toggle",
+            entity_type="product", entity_id=str(product.id),
+            details=f"Featured {'enabled' if featured else 'disabled'}: {product.name}",
+        )
+        return product
+
+    def toggle_visibility(self, product_id: str, visible: bool, admin_id: str):
+        product = self.product_repo.get_by_id(product_id)
+        if not product:
+            raise NotFoundException("Product not found")
+        product = self.product_repo.set_visibility(product, visible)
+        self.log_repo.create(
+            user_id=admin_id, action="product_visibility_toggle",
+            entity_type="product", entity_id=str(product.id),
+            details=f"Visibility {'enabled' if visible else 'disabled'}: {product.name}",
+        )
+        return product
+
+    def update_tags(self, product_id: str, tags: list[str], admin_id: str):
+        product = self.product_repo.get_by_id(product_id)
+        if not product:
+            raise NotFoundException("Product not found")
+        product = self.product_repo.set_tags(product, tags)
+        self.log_repo.create(
+            user_id=admin_id, action="product_tags_update",
+            entity_type="product", entity_id=str(product.id),
+            details=f"Tags updated: {', '.join(tags) if tags else 'none'}",
+        )
+        return product
 
     def get_product(self, product_id: str):
         product = self.product_repo.get_by_id(product_id)

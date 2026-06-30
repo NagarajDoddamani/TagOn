@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, Text, Float, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, Float, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import relationship
 from core.database import Base
 
@@ -18,6 +18,10 @@ class Product(Base):
     customizable = Column(Boolean, default=False)
     status = Column(String(20), nullable=False, default="active")
     image_url = Column(String(500), nullable=True)
+    is_featured = Column(Boolean, default=False)
+    is_visible = Column(Boolean, default=True)
+    tags = Column(JSON, nullable=True, default=list)
+    low_stock_threshold = Column(Integer, nullable=False, default=5)
     is_deleted = Column(Boolean, default=False)
     deleted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

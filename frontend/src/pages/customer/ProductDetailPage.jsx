@@ -119,7 +119,9 @@ export default function ProductDetailPage() {
             <img
               src={product.image_url || 'https://via.placeholder.com/500'}
               alt={product.name}
+              loading="lazy"
               className="w-full rounded-lg shadow-md"
+              onError={(e) => { e.target.src = 'https://via.placeholder.com/500'; }}
             />
           </div>
           <div>
@@ -203,7 +205,9 @@ export default function ProductDetailPage() {
                     <img
                       src={t.preview_image || 'https://via.placeholder.com/150'}
                       alt={t.name}
+                      loading="lazy"
                       className="w-full h-24 object-cover rounded mb-2"
+                      onError={(e) => { e.target.src = 'https://via.placeholder.com/150'; }}
                     />
                     <span className="text-sm font-medium">{t.name}</span>
                     <p className="text-xs text-gray-500">Max {t.max_upload_count} images</p>
@@ -225,7 +229,7 @@ export default function ProductDetailPage() {
             <div className="flex flex-wrap gap-3">
               {uploadedImages.map((url, i) => (
                 <div key={i} className="relative">
-                  <img src={url} alt={`Upload ${i}`} className="w-24 h-24 object-cover rounded" />
+                  <img src={url} alt={`Upload ${i}`} loading="lazy" className="w-24 h-24 object-cover rounded" onError={(e) => { e.target.style.display = 'none'; }} />
                   <button
                     onClick={() => removeImage(i)}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs"
@@ -324,6 +328,7 @@ export default function ProductDetailPage() {
             <img
               src="https://res.cloudinary.com/demo/image/upload/v1/tagon/qr-code.png"
               alt="QR Code"
+              loading="lazy"
               className="w-48 h-48 mx-auto mb-4"
               onError={(e) => { e.target.style.display = 'none' }}
             />

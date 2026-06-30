@@ -97,6 +97,10 @@ class ProductUpdate(BaseModel):
     customizable: Optional[bool] = None
     image_url: Optional[str] = None
     status: Optional[str] = None
+    is_featured: Optional[bool] = None
+    is_visible: Optional[bool] = None
+    tags: Optional[list[str]] = None
+    low_stock_threshold: Optional[int] = Field(None, ge=0)
 
 
 class ProductResponse(BaseModel):
@@ -109,6 +113,10 @@ class ProductResponse(BaseModel):
     customizable: bool
     status: str
     image_url: Optional[str]
+    is_featured: bool = False
+    is_visible: bool = True
+    tags: list = []
+    low_stock_threshold: int = 5
     category: Optional[CategoryResponse]
     variants: List[VariantResponse] = []
     templates: List[TemplateResponse] = []
@@ -117,6 +125,21 @@ class ProductResponse(BaseModel):
     @classmethod
     def coerce_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v
+
+    @field_validator("is_featured", "is_visible", mode="before")
+    @classmethod
+    def coerce_bool(cls, v):
+        return False if v is None else v
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def coerce_tags(cls, v):
+        return [] if v is None else v
+
+    @field_validator("low_stock_threshold", mode="before")
+    @classmethod
+    def coerce_stock_threshold(cls, v):
+        return 5 if v is None else v
 
     class Config:
         from_attributes = True
@@ -132,12 +155,31 @@ class ProductListResponse(BaseModel):
     customizable: bool
     status: str
     image_url: Optional[str]
+    is_featured: bool = False
+    is_visible: bool = True
+    tags: list = []
+    low_stock_threshold: int = 5
     category: Optional[CategoryResponse]
 
     @field_validator("id", "category_id", mode="before")
     @classmethod
     def coerce_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v
+
+    @field_validator("is_featured", "is_visible", mode="before")
+    @classmethod
+    def coerce_bool(cls, v):
+        return False if v is None else v
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def coerce_tags(cls, v):
+        return [] if v is None else v
+
+    @field_validator("low_stock_threshold", mode="before")
+    @classmethod
+    def coerce_stock_threshold(cls, v):
+        return 5 if v is None else v
 
     class Config:
         from_attributes = True

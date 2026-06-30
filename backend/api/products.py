@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from core.database import get_db
@@ -11,6 +11,7 @@ from schemas.product import (
 )
 from services.product_service import ProductService
 from models.user import User
+from utils.pagination import build_paginated_response
 
 router = APIRouter(prefix="/api/products", tags=["Products"])
 
@@ -76,15 +77,32 @@ def create_product(
     return service.create_product(data, admin_id=str(admin.id))
 
 
-@router.get("", response_model=list[ProductListResponse])
+@router.get("")
 def get_products(
-    category_id: Optional[str] = None,
-    product_type: Optional[str] = None,
-    search: Optional[str] = None,
+    category_id: Optional[str] = Query(None),
+    product_type: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    featured: Optional[bool] = Query(None),
+    is_visible: Optional[bool] = Query(None),
+    tags: Optional[str] = Query(None),
+    page: Optional[int] = Query(None, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
     service = ProductService(db)
-    return service.get_products(category_id=category_id, product_type=product_type, search=search)
+    tag_list = tags.split(",") if tags else None
+    result = service.get_products(
+        category_id=category_id, product_type=product_type, search=search,
+        featured=featured, is_visible=is_visible, tags=tag_list,
+        page=page, per_page=per_page,
+    )
+    if page is not None:
+        items, total = result
+        return build_paginated_response(
+            [ProductListResponse.model_validate(p) for p in items],
+            total, page, per_page,
+        )
+    return [ProductListResponse.model_validate(p) for p in result]
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -132,6 +150,39 @@ def delete_product(product_id: str, db: Session = Depends(get_db), admin: User =
     service = ProductService(db)
     service.delete_product(product_id, admin_id=str(admin.id))
     return {"message": "Product deleted successfully"}
+
+
+@router.put("/{product_id}/featured", response_model=ProductResponse)
+def toggle_featured(
+    product_id: str,
+    featured: bool,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    service = ProductService(db)
+    return service.toggle_featured(product_id, featured, admin_id=str(admin.id))
+
+
+@router.put("/{product_id}/visibility", response_model=ProductResponse)
+def toggle_visibility(
+    product_id: str,
+    visible: bool,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    service = ProductService(db)
+    return service.toggle_visibility(product_id, visible, admin_id=str(admin.id))
+
+
+@router.put("/{product_id}/tags", response_model=ProductResponse)
+def update_tags(
+    product_id: str,
+    tags: list[str],
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    service = ProductService(db)
+    return service.update_tags(product_id, tags, admin_id=str(admin.id))
 
 
 @router.post("/{product_id}/variants", response_model=VariantResponse)

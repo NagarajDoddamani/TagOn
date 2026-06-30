@@ -1,9 +1,11 @@
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import cast, String, or_
 from models.product import Product
 from models.category import Category
 from models.product_variant import ProductVariant
 from models.template import Template
 from typing import Optional, List
+from utils.pagination import paginate
 
 
 class ProductRepository:
@@ -38,15 +40,66 @@ class ProductRepository:
             joinedload(Product.templates),
         ).filter(Product.id == product_id, Product.is_deleted == False).first()
 
-    def get_all(self, category_id: Optional[str] = None, product_type: Optional[str] = None, search: Optional[str] = None) -> List[Product]:
+    def get_all(self, category_id: Optional[str] = None, product_type: Optional[str] = None,
+                search: Optional[str] = None, featured: Optional[bool] = None,
+                is_visible: Optional[bool] = None, tags: Optional[list[str]] = None,
+                page: Optional[int] = None, per_page: int = 20):
         query = self.db.query(Product).options(joinedload(Product.category)).filter(Product.is_deleted == False)
         if category_id:
             query = query.filter(Product.category_id == category_id)
         if product_type:
             query = query.filter(Product.product_type == product_type)
         if search:
-            query = query.filter(Product.name.ilike(f"%{search}%"))
-        return query.all()
+            pattern = f"%{search}%"
+            query = query.filter(
+                or_(
+                    Product.name.ilike(pattern),
+                    Product.description.ilike(pattern),
+                    cast(Product.tags, String).ilike(pattern),
+                )
+            )
+        if featured is not None:
+            query = query.filter(Product.is_featured == featured)
+        if is_visible is not None:
+            query = query.filter(Product.is_visible == is_visible)
+        if page is not None:
+            items, total = paginate(query, page=page, per_page=per_page)
+            if tags:
+                tags_set = set(tags)
+                items = [p for p in items if p.tags and tags_set.intersection(p.tags)]
+                total = len(items)
+            return items, total
+        results = query.all()
+        if tags:
+            tags_set = set(tags)
+            results = [p for p in results if p.tags and tags_set.intersection(p.tags)]
+        return results
+
+    def get_featured(self, limit: int = 8) -> List[Product]:
+        return self.db.query(Product).options(joinedload(Product.category)).filter(
+            Product.is_deleted == False,
+            Product.is_featured == True,
+            Product.is_visible == True,
+            Product.status == "active",
+        ).limit(limit).all()
+
+    def set_featured(self, product: Product, featured: bool) -> Product:
+        product.is_featured = featured
+        self.db.commit()
+        self.db.refresh(product)
+        return product
+
+    def set_visibility(self, product: Product, visible: bool) -> Product:
+        product.is_visible = visible
+        self.db.commit()
+        self.db.refresh(product)
+        return product
+
+    def set_tags(self, product: Product, tags: list[str]) -> Product:
+        product.tags = tags
+        self.db.commit()
+        self.db.refresh(product)
+        return product
 
 
 class CategoryRepository:

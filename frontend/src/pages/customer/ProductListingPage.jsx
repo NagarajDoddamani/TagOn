@@ -18,7 +18,7 @@ export default function ProductListingPage() {
       setLoading(true)
       try {
         const [productsData, categoriesData] = await Promise.all([
-          productService.getProducts(selectedCategory || undefined, selectedType || undefined, search || undefined),
+          productService.getProducts(selectedCategory || undefined, selectedType || undefined, search || undefined, undefined, true),
           productService.getCategories(),
         ])
         setProducts(productsData)

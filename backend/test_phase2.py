@@ -42,12 +42,12 @@ at = r.json()["access_token"]
 
 cust_email = f"p2_{TS}@example.com"
 cust_phone = f"888888{TS[-5:]}"
-r2 = requests.post(f"{BASE}/auth/login", json={"email":cust_email,"password":"test123"}, timeout=10)
+r2 = requests.post(f"{BASE}/auth/login", json={"email":cust_email,"password":"Test@123"}, timeout=10)
 ct = None
 if r2.status_code == 200:
     ct = r2.json()["access_token"]
 else:
-    r3 = requests.post(f"{BASE}/auth/register", json={"name":"Phase2 Test","email":cust_email,"phone":cust_phone,"password":"test123","confirm_password":"test123"}, timeout=10)
+    r3 = requests.post(f"{BASE}/auth/register", json={"name":"Phase2 Test","email":cust_email,"phone":cust_phone,"password":"Test@123","confirm_password":"Test@123"}, timeout=10)
     if r3.status_code == 200:
         ct = r3.json()["access_token"]
 

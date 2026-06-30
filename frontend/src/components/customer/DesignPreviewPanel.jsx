@@ -95,8 +95,10 @@ export default function DesignPreviewPanel({ orderId, isCustomized, orderStatus 
                 <img
                   src={selectedPreview.image_url}
                   alt={`Design v${selectedPreview.version}`}
+                  loading="lazy"
                   style={{ transform: `scale(${zoom})`, maxWidth: '100%', maxHeight: 500 }}
                   className="transition-transform duration-200 object-contain"
+                  onError={(e) => { e.target.style.display = 'none'; }}
                 />
               </div>
               <div className="flex gap-2 mt-2 justify-center">

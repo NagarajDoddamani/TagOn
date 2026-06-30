@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
 
 
 class Settings(BaseSettings):
@@ -37,6 +38,31 @@ class Settings(BaseSettings):
     @property
     def allowed_origins_list(self) -> list[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",")]
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() == "production"
+
+    def validate(self) -> list[str]:
+        errors = []
+        required = {
+            "DATABASE_URL": self.DATABASE_URL,
+            "SECRET_KEY": self.SECRET_KEY,
+            "CLOUDINARY_CLOUD_NAME": self.CLOUDINARY_CLOUD_NAME,
+            "CLOUDINARY_API_KEY": self.CLOUDINARY_API_KEY,
+            "CLOUDINARY_API_SECRET": self.CLOUDINARY_API_SECRET,
+        }
+        for name, value in required.items():
+            if not value or value == "change-me":
+                errors.append(f"{name} is not set")
+        if self.is_production:
+            if self.DEBUG:
+                errors.append("DEBUG must be False in production")
+            if "localhost" in self.ALLOWED_ORIGINS or "127.0.0.1" in self.ALLOWED_ORIGINS:
+                errors.append("ALLOWED_ORIGINS contains localhost in production")
+            if len(self.SECRET_KEY) < 32:
+                errors.append("SECRET_KEY must be at least 32 characters in production")
+        return errors
 
     class Config:
         env_file = ".env"

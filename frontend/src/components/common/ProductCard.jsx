@@ -3,11 +3,18 @@ import { formatCurrency } from '../../utils/helpers'
 
 export default function ProductCard({ product }) {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition relative">
+      {product.is_featured && (
+        <span className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full z-10">
+          Featured
+        </span>
+      )}
       <img
         src={product.image_url || 'https://via.placeholder.com/300'}
         alt={product.name}
+        loading="lazy"
         className="w-full h-48 object-cover"
+        onError={(e) => { e.target.src = 'https://via.placeholder.com/300'; }}
       />
       <div className="p-4">
         <span className="text-xs text-primary-600 font-semibold uppercase">

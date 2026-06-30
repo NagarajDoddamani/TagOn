@@ -54,7 +54,7 @@ export default function OrderTimeline({ orderId }) {
                       <p className="text-gray-500 text-xs mt-0.5">{entry.description}</p>
                     )}
                     {entry.image_url && (
-                      <img src={entry.image_url} alt="design preview" className="mt-1 max-w-[150px] rounded border" />
+                      <img src={entry.image_url} alt="design preview" loading="lazy" className="mt-1 max-w-[150px] rounded border" onError={(e) => { e.target.style.display = 'none'; }} />
                     )}
                     <p className="text-gray-400 text-xs mt-0.5">{formatDate(entry.timestamp)}</p>
                   </div>
