@@ -48,6 +48,12 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  clearAuth: () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    set({ user: null, token: null, isAuthenticated: false })
+  },
+
   setUser: (user) => {
     localStorage.setItem('user', JSON.stringify(user))
     set({ user })

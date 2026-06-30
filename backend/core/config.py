@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str = "admin@tagon.com"
     ADMIN_PASSWORD: str = "admin123"
     ADMIN_NAME: str = "TagOn Admin"
+    ADMIN_PHONE: str = "0000000000"
 
     QR_IMAGE_URL: str = "https://res.cloudinary.com/demo/image/upload/v1/tagon/qr-code.png"
 

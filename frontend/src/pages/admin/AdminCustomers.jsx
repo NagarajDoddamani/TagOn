@@ -4,6 +4,7 @@ import { adminService } from '../../services/admin.service'
 import { formatDate } from '../../utils/helpers'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import { toast } from '../../store/toast.store'
+import { confirmBlockToggle, success as swalSuccess } from '../../utils/swal'
 
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState([])
@@ -56,11 +57,12 @@ export default function AdminCustomers() {
   }
 
   const handleBlockToggle = async (id, currentStatus) => {
+    const result = await confirmBlockToggle(currentStatus)
+    if (!result.isConfirmed) return
     const newStatus = currentStatus === 'active' ? 'suspended' : 'active'
-    if (!confirm(`Set this customer to "${newStatus}"?`)) return
     try {
       await adminService.updateCustomerStatus(id, newStatus)
-      toast.success(`Customer ${newStatus === 'suspended' ? 'blocked' : 'unblocked'}`)
+      swalSuccess(`Customer ${newStatus === 'suspended' ? 'blocked' : 'unblocked'}`)
       const filters = {}
       if (search) filters.search = search
       if (statusFilter) filters.status = statusFilter

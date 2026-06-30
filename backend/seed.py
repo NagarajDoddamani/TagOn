@@ -1,32 +1,28 @@
 """Seed script to create the initial administrator account."""
-from core.database import SessionLocal, engine, Base
+from core.database import SessionLocal
 from core.security import hash_password
-from models.user import User
 from core.config import settings
+from repositories.user_repository import UserRepository
 
 
 def seed_admin():
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        admin = db.query(User).filter(User.email == settings.ADMIN_EMAIL).first()
+        repo = UserRepository(db)
+        admin = repo.get_by_email(settings.ADMIN_EMAIL)
         if admin:
-            print("Admin account already exists")
+            print("Admin user already exists.")
             return
 
-        admin = User(
+        hashed_pw = hash_password(settings.ADMIN_PASSWORD)
+        repo.create(
             name=settings.ADMIN_NAME,
             email=settings.ADMIN_EMAIL,
-            phone="0000000000",
-            password=hash_password(settings.ADMIN_PASSWORD),
+            phone=settings.ADMIN_PHONE,
+            password=hashed_pw,
             role="admin",
-            status="active",
         )
-        db.add(admin)
-        db.commit()
-        print("Admin account created successfully")
-        print(f"Email: {settings.ADMIN_EMAIL}")
-        print(f"Password: {settings.ADMIN_PASSWORD}")
+        print("Admin user created successfully.")
     finally:
         db.close()
 

@@ -12,11 +12,14 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const load = async () => {
+      setLoading(true)
       try {
-        const data = await orderService.getOrders(filter || undefined)
+        const params = {}
+        if (filter) params.status = filter
+        const data = await orderService.getOrders(params)
         setOrders(data)
-      } catch (err) {
-        console.error(err)
+      } catch {
+        // silently fail
       } finally {
         setLoading(false)
       }
@@ -28,11 +31,12 @@ export default function OrdersPage() {
     <div>
       <h1 className="text-3xl font-bold mb-6">My Orders</h1>
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <select
           value={filter}
-          onChange={(e) => { setFilter(e.target.value); setLoading(true) }}
+          onChange={(e) => setFilter(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-md"
+          aria-label="Filter orders by status"
         >
           <option value="">All Orders</option>
           <option value="payment_pending_verification">Pending Verification</option>
@@ -47,7 +51,19 @@ export default function OrdersPage() {
       {loading ? (
         <LoadingSpinner />
       ) : orders.length === 0 ? (
-        <p className="text-center text-gray-500 py-12">No orders found.</p>
+        <div className="text-center py-16 bg-white rounded-lg shadow-sm">
+          <div className="text-5xl mb-4 text-gray-300">📦</div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">No orders yet</h2>
+          <p className="text-gray-500 mb-6">
+            {filter ? 'No orders match this filter.' : 'You have not placed any orders yet. Browse our products and place your first order!'}
+          </p>
+          <Link
+            to="/products"
+            className="inline-block bg-primary-600 text-white px-6 py-3 rounded-md hover:bg-primary-700 transition-colors"
+          >
+            Browse Products
+          </Link>
+        </div>
       ) : (
         <div className="space-y-4">
           {orders.map((order) => (

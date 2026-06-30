@@ -6,6 +6,8 @@ import OrderStatusBadge from '../../components/common/OrderStatusBadge'
 import { formatCurrency, formatDate, getStatusLabel } from '../../utils/helpers'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import { toast } from '../../store/toast.store'
+import { confirmPayment, confirmStatusChange, success as swalSuccess, error as swalError, loading as swalLoading, close as swalClose } from '../../utils/swal'
+import Swal from 'sweetalert2'
 
 function TableSkeleton() {
   return (
@@ -45,10 +47,6 @@ export default function AdminOrderManagement() {
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
   const [selectedOrder, setSelectedOrder] = useState(null)
-  const [verifyModal, setVerifyModal] = useState(null)
-  const [statusModal, setStatusModal] = useState(null)
-  const [newStatus, setNewStatus] = useState('')
-  const [remarks, setRemarks] = useState('')
 
   const buildFilters = () => {
     const f = {}
@@ -76,31 +74,79 @@ export default function AdminOrderManagement() {
 
   useEffect(() => { loadOrders(buildFilters()) }, [statusFilter, paymentStatus])
 
-  const handleVerify = async (orderId, status) => {
+  const handleVerify = async (orderId, action) => {
+    const result = await confirmPayment(action)
+    if (!result.isConfirmed) return
+    swalLoading(action === 'verified' ? 'Approving...' : 'Rejecting...')
     try {
-      await adminService.getDashboard()
       const { default: api } = await import('../../services/api')
-      await api.post(`/payments/verify/${orderId}`, { status, remarks })
-      toast.success(`Payment ${status}`)
-      setVerifyModal(null)
-      setRemarks('')
+      await api.post(`/payments/verify/${orderId}`, { status: action, remarks: '' })
+      swalClose()
+      swalSuccess(action === 'verified' ? 'Payment approved' : 'Payment rejected')
       loadOrders()
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to verify payment')
+      swalClose()
+      swalError('Operation Failed', err.response?.data?.detail || 'Failed to verify payment')
     }
   }
 
   const handleStatusUpdate = async (orderId) => {
+    const { value: formValues } = await Swal.fire({
+      title: 'Update Order Status',
+      html: `
+        <div class="text-left space-y-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">New Status</label>
+            <select id="swal-status" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+              <option value="">Select Status</option>
+              <option value="payment_verified">Payment Verified</option>
+              <option value="designing">Designing</option>
+              <option value="approval_pending">Approval Pending</option>
+              <option value="approved">Approved</option>
+              <option value="printing">Printing</option>
+              <option value="packing">Packing</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Remarks (optional)</label>
+            <textarea id="swal-remarks" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" rows="3" placeholder="Add any notes..."></textarea>
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Update',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#4f46e5',
+      preConfirm: () => {
+        const status = document.getElementById('swal-status').value
+        const remarks = document.getElementById('swal-remarks').value
+        if (!status) {
+          Swal.showValidationMessage('Please select a status')
+          return false
+        }
+        return { status, remarks }
+      },
+    })
+
+    if (!formValues) return
+
+    const confirmed = await confirmStatusChange(getStatusLabel(formValues.status))
+    if (!confirmed.isConfirmed) return
+
+    swalLoading('Updating status...')
     try {
       const { default: api } = await import('../../services/api')
-      await api.put(`/orders/${orderId}/status`, { status: newStatus, remarks })
-      toast.success('Order status updated')
-      setStatusModal(null)
-      setRemarks('')
-      setNewStatus('')
+      await api.put(`/orders/${orderId}/status`, { status: formValues.status, remarks: formValues.remarks || undefined })
+      swalClose()
+      swalSuccess('Order status updated')
       loadOrders()
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to update status')
+      swalClose()
+      swalError('Operation Failed', err.response?.data?.detail || 'Failed to update status')
     }
   }
 
@@ -187,60 +233,16 @@ export default function AdminOrderManagement() {
                     <button onClick={() => viewOrder(o.id)} className="text-sm text-primary-600 hover:underline">View</button>
                     <Link to={`/admin/orders/${o.id}`} className="text-sm text-indigo-600 hover:underline">Workspace</Link>
                     {o.order_status === 'payment_pending_verification' && (
-                      <button onClick={() => setVerifyModal(o.id)} className="text-sm text-green-600 hover:underline">Verify</button>
+                      <button onClick={() => handleVerify(o.id, 'verified')} className="text-sm text-green-600 hover:underline">Verify</button>
                     )}
                     {o.order_status !== 'delivered' && o.order_status !== 'cancelled' && (
-                      <button onClick={() => setStatusModal(o.id)} className="text-sm text-blue-600 hover:underline">Update</button>
+                      <button onClick={() => handleStatusUpdate(o.id)} className="text-sm text-blue-600 hover:underline">Update</button>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {verifyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md animate-slide-up">
-            <h2 className="text-xl font-bold mb-4">Verify Payment</h2>
-            <div className="space-y-4">
-              <div className="flex gap-3">
-                <button onClick={() => handleVerify(verifyModal, 'verified')} className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700">Approve</button>
-                <button onClick={() => handleVerify(verifyModal, 'rejected')} className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700">Reject</button>
-                <button onClick={() => setVerifyModal(null)} className="bg-gray-300 px-6 py-2 rounded-md">Cancel</button>
-              </div>
-              <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks (optional)" className="w-full px-3 py-2 border rounded-md" />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {statusModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md animate-slide-up">
-            <h2 className="text-xl font-bold mb-4">Update Order Status</h2>
-            <div className="space-y-4">
-              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full px-3 py-2 border rounded-md">
-                <option value="">Select Status</option>
-                <option value="payment_verified">Payment Verified</option>
-                <option value="designing">Designing</option>
-                <option value="approval_pending">Approval Pending</option>
-                <option value="approved">Approved</option>
-                <option value="printing">Printing</option>
-                <option value="packing">Packing</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="archived">Archived</option>
-              </select>
-              <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks (optional)" className="w-full px-3 py-2 border rounded-md" />
-              <div className="flex gap-3">
-                <button onClick={() => handleStatusUpdate(statusModal)} disabled={!newStatus} className="bg-primary-600 text-white px-4 py-2 rounded-md disabled:opacity-50">Update</button>
-                <button onClick={() => setStatusModal(null)} className="bg-gray-300 px-4 py-2 rounded-md">Cancel</button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 

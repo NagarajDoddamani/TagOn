@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from core.exceptions import NotFoundException, DuplicateException
-from repositories.product_repository import ProductRepository, CategoryRepository, VariantRepository, TemplateRepository
+from repositories.product_repository import ProductRepository, CategoryRepository, VariantRepository, TemplateRepository, TemplateImageRepository
 from repositories.activity_log_repository import ActivityLogRepository
 from typing import Optional
 
@@ -11,6 +11,7 @@ class ProductService:
         self.category_repo = CategoryRepository(db)
         self.variant_repo = VariantRepository(db)
         self.template_repo = TemplateRepository(db)
+        self.template_image_repo = TemplateImageRepository(db)
         self.log_repo = ActivityLogRepository(db)
 
     def create_category(self, name: str, description: Optional[str], admin_id: str):
@@ -176,20 +177,55 @@ class ProductService:
             entity_type="variant", entity_id=str(variant.id),
         )
 
-    def create_template(self, product_id: str, name: str, max_upload_count: int, orientation: Optional[str], preview_image: Optional[str], admin_id: str):
+    def create_template(self, product_id: str, name: str, max_upload_count: int, orientation: Optional[str], admin_id: str):
         product = self.product_repo.get_by_id(product_id)
         if not product:
             raise NotFoundException("Product not found")
         template = self.template_repo.create(
             product_id=product_id, name=name,
             max_upload_count=max_upload_count,
-            orientation=orientation, preview_image=preview_image,
+            orientation=orientation,
         )
         self.log_repo.create(
             user_id=admin_id, action="template_creation",
             entity_type="template", entity_id=str(template.id),
         )
         return template
+
+    def add_template_images(self, template_id: str, image_urls: list[str], admin_id: str):
+        template = self.template_repo.get_by_id(template_id)
+        if not template:
+            raise NotFoundException("Template not found")
+        existing_count = self.template_image_repo.count_by_template(template_id)
+        if existing_count + len(image_urls) > 100:
+            raise DuplicateException("Template cannot have more than 100 images")
+        images = self.template_image_repo.create_many(template_id, image_urls)
+        self.log_repo.create(
+            user_id=admin_id, action="template_images_add",
+            entity_type="template", entity_id=template_id,
+            details=f"Added {len(image_urls)} image(s) to template",
+        )
+        return images
+
+    def delete_template_image(self, image_id: str, admin_id: str):
+        image = self.template_image_repo.get_by_id(image_id)
+        if not image:
+            raise NotFoundException("Template image not found")
+        self.template_image_repo.delete(image)
+        self.log_repo.create(
+            user_id=admin_id, action="template_image_delete",
+            entity_type="template_image", entity_id=image_id,
+        )
+
+    def reorder_template_images(self, template_id: str, image_ids: list[str], admin_id: str):
+        template = self.template_repo.get_by_id(template_id)
+        if not template:
+            raise NotFoundException("Template not found")
+        self.template_image_repo.reorder(template_id, image_ids)
+        self.log_repo.create(
+            user_id=admin_id, action="template_images_reorder",
+            entity_type="template", entity_id=template_id,
+        )
 
     def update_template(self, template_id: str, data: dict, admin_id: str):
         template = self.template_repo.get_by_id(template_id)

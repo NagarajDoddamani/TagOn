@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { adminService } from '../../services/admin.service'
+import { toast } from '../../store/toast.store'
 
 const REPORT_TYPES = [
   { id: 'orders', label: 'Orders', desc: 'All orders with customer, product, status & date details' },
@@ -34,9 +35,8 @@ export default function AdminReports() {
       if (endDate) filters.end_date = endDate
       if (status) filters.status = status
       await adminService.downloadReport(reportType, format, filters)
-    } catch (err) {
-      console.error(err)
-      alert('Failed to download report')
+    } catch {
+      toast.error('Failed to download report')
     } finally {
       setDownloading(false)
     }

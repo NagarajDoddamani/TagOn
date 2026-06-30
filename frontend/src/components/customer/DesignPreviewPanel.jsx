@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { designService } from '../../services/design.service'
+import { toast } from '../../store/toast.store'
 import { formatDate } from '../../utils/helpers'
 
 export default function DesignPreviewPanel({ orderId, isCustomized, orderStatus }) {
@@ -47,7 +48,8 @@ export default function DesignPreviewPanel({ orderId, isCustomized, orderStatus 
       await designService.submitRevision(orderId, 'approved', comments, selectedPreview?.id)
       await loadData()
       setComments('')
-    } catch (e) { console.error(e) } finally { setSubmitting(false) }
+      toast.success('Design approved')
+    } catch { toast.error('Failed to approve design') } finally { setSubmitting(false) }
   }
 
   async function handleRequestChanges() {
@@ -57,7 +59,8 @@ export default function DesignPreviewPanel({ orderId, isCustomized, orderStatus 
       await designService.submitRevision(orderId, 'changes_requested', comments, selectedPreview?.id)
       await loadData()
       setComments('')
-    } catch (e) { console.error(e) } finally { setSubmitting(false) }
+      toast.info('Changes requested')
+    } catch { toast.error('Failed to submit request') } finally { setSubmitting(false) }
   }
 
   if (!isCustomized) return null

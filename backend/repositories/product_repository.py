@@ -4,6 +4,7 @@ from models.product import Product
 from models.category import Category
 from models.product_variant import ProductVariant
 from models.template import Template
+from models.template_image import TemplateImage
 from typing import Optional, List
 from utils.pagination import paginate
 
@@ -37,7 +38,8 @@ class ProductRepository:
         return self.db.query(Product).options(
             joinedload(Product.category),
             joinedload(Product.variants),
-            joinedload(Product.templates),
+            joinedload(Product.templates).joinedload(Template.images),
+            joinedload(Product.template_group),
         ).filter(Product.id == product_id, Product.is_deleted == False).first()
 
     def get_all(self, category_id: Optional[str] = None, product_type: Optional[str] = None,
@@ -167,11 +169,11 @@ class TemplateRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, product_id: str, name: str, max_upload_count: int = 1, orientation: str = None, preview_image: str = None) -> Template:
+    def create(self, product_id: str = None, template_group_id: str = None, name: str = None, max_upload_count: int = 1, orientation: str = None) -> Template:
         template = Template(
-            product_id=product_id, name=name,
+            product_id=product_id, template_group_id=template_group_id, name=name,
             max_upload_count=max_upload_count,
-            orientation=orientation, preview_image=preview_image,
+            orientation=orientation,
         )
         self.db.add(template)
         self.db.commit()
@@ -193,7 +195,59 @@ class TemplateRepository:
         return template
 
     def get_by_id(self, template_id: str) -> Template:
-        return self.db.query(Template).filter(Template.id == template_id, Template.is_deleted == False).first()
+        return self.db.query(Template).options(joinedload(Template.images)).filter(Template.id == template_id, Template.is_deleted == False).first()
 
     def get_by_product(self, product_id: str) -> list:
-        return self.db.query(Template).filter(Template.product_id == product_id, Template.is_deleted == False).all()
+        return self.db.query(Template).options(joinedload(Template.images)).filter(Template.product_id == product_id, Template.is_deleted == False).all()
+
+    def get_by_group(self, group_id: str) -> list:
+        return self.db.query(Template).options(joinedload(Template.images)).filter(Template.template_group_id == group_id, Template.is_deleted == False).all()
+
+
+class TemplateImageRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create(self, template_id: str, image_url: str, sort_order: int = 0) -> TemplateImage:
+        image = TemplateImage(template_id=template_id, image_url=image_url, sort_order=sort_order)
+        self.db.add(image)
+        self.db.commit()
+        self.db.refresh(image)
+        return image
+
+    def create_many(self, template_id: str, image_urls: list[str]) -> list[TemplateImage]:
+        images = []
+        for i, url in enumerate(image_urls):
+            image = TemplateImage(template_id=template_id, image_url=url, sort_order=i)
+            self.db.add(image)
+            images.append(image)
+        self.db.commit()
+        for img in images:
+            self.db.refresh(img)
+        return images
+
+    def get_by_id(self, image_id: str) -> Optional[TemplateImage]:
+        return self.db.query(TemplateImage).filter(TemplateImage.id == image_id).first()
+
+    def get_by_template(self, template_id: str) -> list[TemplateImage]:
+        return self.db.query(TemplateImage).filter(
+            TemplateImage.template_id == template_id
+        ).order_by(TemplateImage.sort_order).all()
+
+    def delete(self, image: TemplateImage):
+        self.db.delete(image)
+        self.db.commit()
+
+    def delete_by_template(self, template_id: str):
+        self.db.query(TemplateImage).filter(TemplateImage.template_id == template_id).delete()
+        self.db.commit()
+
+    def reorder(self, template_id: str, image_ids: list[str]):
+        for idx, image_id in enumerate(image_ids):
+            self.db.query(TemplateImage).filter(
+                TemplateImage.id == image_id, TemplateImage.template_id == template_id
+            ).update({"sort_order": idx})
+        self.db.commit()
+
+    def count_by_template(self, template_id: str) -> int:
+        return self.db.query(TemplateImage).filter(TemplateImage.template_id == template_id).count()

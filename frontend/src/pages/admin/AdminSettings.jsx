@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { adminService } from '../../services/admin.service'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import { success as swalSuccess, error as swalError } from '../../utils/swal'
 
 const TABS = [
   { id: 'business_info', label: 'Business Info' },
@@ -64,11 +65,10 @@ export default function AdminSettings() {
     try {
       const updated = await adminService.updateSettingsGroup(activeTab, values)
       setValues(updated)
-      setMessage('Settings saved successfully.')
-      setTimeout(() => setMessage(''), 3000)
+      swalSuccess('Settings saved successfully')
     } catch (err) {
       console.error(err)
-      setMessage('Failed to save settings.')
+      swalError('Operation Failed', 'Failed to save settings.')
     } finally {
       setSaving(false)
     }

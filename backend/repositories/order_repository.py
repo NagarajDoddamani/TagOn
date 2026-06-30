@@ -26,8 +26,11 @@ class OrderRepository:
             joinedload(Order.payment),
         ).filter(Order.id == order_id).first()
 
-    def get_by_customer(self, customer_id: str) -> List[Order]:
-        return self.db.query(Order).filter(Order.customer_id == customer_id).order_by(Order.created_at.desc()).all()
+    def get_by_customer(self, customer_id: str, status: Optional[str] = None) -> List[Order]:
+        query = self.db.query(Order).filter(Order.customer_id == customer_id)
+        if status:
+            query = query.filter(Order.order_status == status)
+        return query.order_by(Order.created_at.desc()).all()
 
     def get_all(self, status: Optional[str] = None, page: Optional[int] = None, per_page: int = 20):
         query = self.db.query(Order).options(joinedload(Order.customer)).order_by(Order.created_at.desc())

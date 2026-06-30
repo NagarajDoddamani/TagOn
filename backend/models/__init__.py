@@ -3,6 +3,7 @@ from .category import Category
 from .product import Product
 from .product_variant import ProductVariant
 from .template import Template
+from .template_group import TemplateGroup
 from .order import Order
 from .payment import Payment
 from .notification import Notification
@@ -11,3 +12,6 @@ from .order_status_history import OrderStatusHistory
 from .chat_message import ChatMessage
 from .design import DesignPreview, DesignRevision
 from .setting import Setting
+from .review import Review
+from .address import Address
+from .template_image import TemplateImage

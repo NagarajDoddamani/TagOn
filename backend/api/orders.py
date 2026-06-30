@@ -38,7 +38,7 @@ def get_orders(
 ):
     service = OrderService(db)
     if current_user.role == "customer":
-        orders = service.get_customer_orders(str(current_user.id))
+        orders = service.get_customer_orders(str(current_user.id), status=status)
         result = []
         for order in orders:
             result.append(OrderListResponse(

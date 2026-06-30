@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useCallback } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
+import GooglePrefillButton from '../../components/common/GooglePrefillButton'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -12,6 +13,13 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const register = useAuthStore((s) => s.register)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirect = searchParams.get('redirect')
+
+  const handlePrefill = useCallback((data) => {
+    setName(data.name || '')
+    setEmail(data.email || '')
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -23,7 +31,11 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       await register(name, email, phone, password, confirmPassword)
-      navigate('/')
+      if (redirect) {
+        navigate(redirect, { replace: true })
+      } else {
+        navigate('/', { replace: true })
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed')
     } finally {
@@ -37,6 +49,17 @@ export default function RegisterPage() {
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{error}</div>
       )}
+
+      <div className="mb-6">
+        <GooglePrefillButton mode="register" onPrefill={handlePrefill} />
+      </div>
+
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex-1 border-t border-gray-300" />
+        <span className="text-sm text-gray-500">OR</span>
+        <div className="flex-1 border-t border-gray-300" />
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Full Name</label>
@@ -46,6 +69,7 @@ export default function RegisterPage() {
             onChange={(e) => setName(e.target.value)}
             required
             className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="John Doe"
           />
         </div>
         <div>
@@ -56,6 +80,7 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
             className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="john@example.com"
           />
         </div>
         <div>
@@ -66,6 +91,7 @@ export default function RegisterPage() {
             onChange={(e) => setPhone(e.target.value)}
             required
             className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="+91 9876543210"
           />
         </div>
         <div>
@@ -75,9 +101,10 @@ export default function RegisterPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
+            minLength={8}
             className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
+          <p className="text-xs text-gray-400 mt-1">Min 8 chars, uppercase, lowercase, number &amp; special character</p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700">Confirm Password</label>

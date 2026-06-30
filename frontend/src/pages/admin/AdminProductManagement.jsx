@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { productService } from '../../services/product.service'
-import { formatCurrency } from '../../utils/helpers'
+import { templateGroupService } from '../../services/template-group.service'
+import { formatCurrency, NO_IMAGE_FALLBACK } from '../../utils/helpers'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import { toast } from '../../store/toast.store'
+import { confirmDelete, success as swalSuccess } from '../../utils/swal'
 
 export default function AdminProductManagement() {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [templateGroups, setTemplateGroups] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('products')
 
@@ -18,6 +21,9 @@ export default function AdminProductManagement() {
   const [productType, setProductType] = useState('customized')
   const [customizable, setCustomizable] = useState(false)
   const [categoryId, setCategoryId] = useState('')
+  const [templateGroupId, setTemplateGroupId] = useState('')
+  const [productImage, setProductImage] = useState(null)
+  const [productImagePreview, setProductImagePreview] = useState('')
 
   const [showCategoryForm, setShowCategoryForm] = useState(false)
   const [editingCategory, setEditingCategory] = useState(null)
@@ -32,18 +38,22 @@ export default function AdminProductManagement() {
   const [editingVariant, setEditingVariant] = useState(null)
 
   const [showTemplateForm, setShowTemplateForm] = useState(null)
-  const [templateName, setTemplateName] = useState('')
   const [maxUploadCount, setMaxUploadCount] = useState(1)
+  const [templateImages, setTemplateImages] = useState([])
+  const [templateImagePreviews, setTemplateImagePreviews] = useState([])
+  const [uploadingTemplates, setUploadingTemplates] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
     try {
-      const [p, c] = await Promise.all([
+      const [p, c, tg] = await Promise.all([
         productService.getProducts(),
         productService.getCategories(),
+        templateGroupService.getGroups(),
       ])
       setProducts(p)
       setCategories(c)
+      setTemplateGroups(tg)
     } catch (err) {
       console.error(err)
     } finally {
@@ -60,6 +70,9 @@ export default function AdminProductManagement() {
     setProductType('customized')
     setCustomizable(false)
     setCategoryId('')
+    setTemplateGroupId('')
+    setProductImage(null)
+    setProductImagePreview('')
     setShowForm(false)
     setEditingProduct(null)
   }
@@ -73,12 +86,15 @@ export default function AdminProductManagement() {
     formData.append('product_type', productType)
     formData.append('customizable', String(customizable))
     if (description) formData.append('description', description)
+    if (templateGroupId) formData.append('template_group_id', templateGroupId)
+    if (productImage) formData.append('image', productImage)
     try {
       if (editingProduct) {
         await productService.updateProduct(editingProduct, formData)
       } else {
         await productService.createProduct(formData)
       }
+      swalSuccess(editingProduct ? 'Product updated' : 'Product created')
       resetForm()
       loadData()
     } catch (err) {
@@ -93,14 +109,19 @@ export default function AdminProductManagement() {
     setProductType(p.product_type)
     setCustomizable(p.customizable)
     setCategoryId(p.category_id)
+    setTemplateGroupId(p.template_group_id || '')
+    setProductImage(null)
+    setProductImagePreview(p.image_url || '')
     setEditingProduct(p.id)
     setShowForm(true)
   }
 
   const handleDeleteProduct = async (id) => {
-    if (!confirm('Delete this product?')) return
+    const result = await confirmDelete('this product')
+    if (!result.isConfirmed) return
     try {
       await productService.deleteProduct(id)
+      swalSuccess('Product deleted')
       loadData()
     } catch (err) {
       console.error(err)
@@ -135,6 +156,7 @@ export default function AdminProductManagement() {
       } else {
         await productService.createCategory(catName, catDesc || undefined)
       }
+      swalSuccess(editingCategory ? 'Category updated' : 'Category created')
       resetCategoryForm()
       loadData()
     } catch (err) {
@@ -143,9 +165,11 @@ export default function AdminProductManagement() {
   }
 
   const handleDeleteCategory = async (id) => {
-    if (!confirm('Delete this category? Products in this category may break.')) return
+    const result = await confirmDelete('this category')
+    if (!result.isConfirmed) return
     try {
       await productService.deleteCategory(id)
+      swalSuccess('Category deleted')
       loadData()
     } catch (err) {
       console.error(err)
@@ -205,7 +229,8 @@ export default function AdminProductManagement() {
   }
 
   const handleDeleteVariant = async (id) => {
-    if (!confirm('Delete this variant?')) return
+    const result = await confirmDelete('this variant')
+    if (!result.isConfirmed) return
     try {
       await productService.deleteVariant(id)
       if (showVariantPanel) await loadVariants(showVariantPanel)
@@ -215,24 +240,74 @@ export default function AdminProductManagement() {
   }
 
   const handleCreateTemplate = async (productId) => {
+    if (templateImages.length === 0) {
+      toast.error('No files selected')
+      return
+    }
+    const product = products.find(p => p.id === productId)
+    const groupId = product?.template_group_id
+    if (!groupId) {
+      toast.error('Assign a Template Group to this product first')
+      return
+    }
+    setUploadingTemplates(true)
     try {
-      const formData = new FormData()
-      formData.append('name', templateName)
-      formData.append('max_upload_count', String(maxUploadCount))
-      await productService.createTemplate(productId, formData)
-      setTemplateName('')
+      const result = await templateGroupService.createTemplatesBatch(groupId, templateImages, maxUploadCount)
+      const created = result.total_created || result.templates?.length || 0
+      const failed = result.total_failed || result.failed?.length || 0
+      if (created > 0) {
+        toast.success(`${created} template(s) created`)
+      }
+      if (failed > 0) {
+        toast.error(`${failed} file(s) failed`)
+      }
       setMaxUploadCount(1)
+      setTemplateImages([])
+      setTemplateImagePreviews([])
       setShowTemplateForm(null)
       loadData()
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to create template')
+      toast.error(err.response?.data?.detail || 'Failed to create templates')
+    } finally {
+      setUploadingTemplates(false)
     }
   }
 
+  const handleTemplateImagesChange = (e) => {
+    const files = Array.from(e.target.files || [])
+    const validFiles = []
+    const validPreviews = []
+    for (const file of files) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        toast.error(`Skipping ${file.name}: Only JPEG, PNG, WEBP allowed`)
+        continue
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`Skipping ${file.name}: Must be less than 5MB`)
+        continue
+      }
+      if (validFiles.length + templateImages.length >= 100) {
+        toast.error('Maximum 100 templates per batch')
+        break
+      }
+      validFiles.push(file)
+      validPreviews.push(URL.createObjectURL(file))
+    }
+    setTemplateImages((prev) => [...prev, ...validFiles])
+    setTemplateImagePreviews((prev) => [...prev, ...validPreviews])
+  }
+
+  const removeTemplateImage = (index) => {
+    setTemplateImages((prev) => prev.filter((_, i) => i !== index))
+    setTemplateImagePreviews((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const handleDeleteTemplate = async (templateId) => {
-    if (!confirm('Delete this template?')) return
+    const result = await confirmDelete('this template')
+    if (!result.isConfirmed) return
     try {
       await productService.deleteTemplate(templateId)
+      swalSuccess('Template deleted')
       loadData()
     } catch (err) {
       console.error(err)
@@ -347,13 +422,15 @@ export default function AdminProductManagement() {
       {/* ---- Product Tab ---- */}
       {activeTab === 'products' && (
         <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-          <table className="w-full min-w-[800px]">
+          <table className="w-full min-w-[900px]">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Image</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tmpl Group</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Feat</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Vis</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tags</th>
@@ -363,14 +440,20 @@ export default function AdminProductManagement() {
             <tbody className="divide-y divide-gray-200">
               {products.map((p) => (
                 <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-4">
+                    <img src={p.image_url || NO_IMAGE_FALLBACK} alt={p.name}
+                         className="w-12 h-12 rounded object-cover border"
+                         onError={(e) => { e.target.onerror = null; e.target.src = NO_IMAGE_FALLBACK }} />
+                  </td>
                   <td className="px-4 py-4">{p.name}</td>
-                  <td className="px-4 py-4">{p.category?.name}</td>
+                  <td className="px-4 py-4">{p.category?.name || '-'}</td>
                   <td className="px-4 py-4">{formatCurrency(p.base_price)}</td>
                   <td className="px-4 py-4">
                     <span className={`px-2 py-1 rounded text-xs ${p.customizable ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
                       {p.customizable ? 'Custom' : p.product_type}
                     </span>
                   </td>
+                  <td className="px-4 py-4 text-sm text-gray-500">{p.template_group_id ? 'Yes' : '-'}</td>
                   <td className="px-4 py-4 text-center">
                     <button onClick={() => handleToggleFeatured(p.id, p.is_featured)}
                             className={`text-lg ${p.is_featured ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}
@@ -407,7 +490,7 @@ export default function AdminProductManagement() {
                     <div className="flex gap-2 flex-wrap">
                       <button onClick={() => handleEditProduct(p)} className="text-sm text-primary-600 hover:underline">Edit</button>
                       <button onClick={() => handleOpenVariants(p.id)} className="text-sm text-indigo-600 hover:underline">Var</button>
-                      <button onClick={() => { setShowTemplateForm(p.id); setTemplateName(''); setMaxUploadCount(1) }} className="text-sm text-purple-600 hover:underline">+Tmpl</button>
+                      <button onClick={() => { setShowTemplateForm(p.id); setMaxUploadCount(1); setTemplateImages([]); setTemplateImagePreviews([]) }} className="text-sm text-purple-600 hover:underline">+Tmpl</button>
                       <button onClick={() => handleDeleteProduct(p.id)} className="text-sm text-red-600 hover:underline">Del</button>
                     </div>
                   </td>
@@ -421,15 +504,47 @@ export default function AdminProductManagement() {
       {/* ---- Product Form Modal ---- */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white p-6 rounded-lg w-full max-w-lg animate-slide-up">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg animate-slide-up max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">{editingProduct ? 'Edit Product' : 'Create Product'}</h2>
             <form onSubmit={handleCreateProduct} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded border overflow-hidden bg-gray-50 flex items-center justify-center">
+                    {productImagePreview ? (
+                      <img src={productImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-gray-400 text-xs">No image</span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input type="file" accept="image/*"
+                           onChange={(e) => {
+                             const file = e.target.files[0]
+                             if (file) {
+                               if (file.size > 5 * 1024 * 1024) { toast.error('Max 5MB'); return }
+                               setProductImage(file)
+                               setProductImagePreview(URL.createObjectURL(file))
+                             }
+                           }}
+                           className="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                    {productImagePreview && (
+                      <button type="button" onClick={() => { setProductImage(null); setProductImagePreview('') }}
+                              className="mt-1 text-xs text-red-500 hover:underline">Remove</button>
+                    )}
+                  </div>
+                </div>
+              </div>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Product Name" required className="w-full px-3 py-2 border rounded-md" />
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" className="w-full px-3 py-2 border rounded-md" />
               <input value={basePrice} onChange={(e) => setBasePrice(e.target.value)} type="number" step="0.01" placeholder="Base Price" required className="w-full px-3 py-2 border rounded-md" />
               <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required className="w-full px-3 py-2 border rounded-md">
                 <option value="">Select Category</option>
                 {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+              </select>
+              <select value={templateGroupId} onChange={(e) => setTemplateGroupId(e.target.value)} className="w-full px-3 py-2 border rounded-md">
+                <option value="">No Template Group</option>
+                {templateGroups.map((tg) => (<option key={tg.id} value={tg.id}>{tg.name}</option>))}
               </select>
               <select value={productType} onChange={(e) => setProductType(e.target.value)} className="w-full px-3 py-2 border rounded-md">
                 <option value="customized">Customized</option>
@@ -486,14 +601,61 @@ export default function AdminProductManagement() {
       {/* ---- Template Form Modal ---- */}
       {showTemplateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md animate-slide-up">
-            <h2 className="text-xl font-bold mb-4">Add Template</h2>
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg animate-slide-up max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-2">Upload Templates</h2>
+            <p className="text-sm text-gray-500 mb-4">Each image becomes a separate Template record in this product's Template Group.</p>
             <div className="space-y-4">
-              <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder="Template Name" className="w-full px-3 py-2 border rounded-md" />
-              <input value={maxUploadCount} onChange={(e) => setMaxUploadCount(Number(e.target.value))} type="number" min="1" placeholder="Max Images" className="w-full px-3 py-2 border rounded-md" />
+              <div>
+                <label className="block text-sm font-medium mb-1">Max Customer Uploads per Template</label>
+                <input
+                  value={maxUploadCount}
+                  onChange={(e) => setMaxUploadCount(Number(e.target.value))}
+                  type="number" min="1" max="100"
+                  className="w-32 px-3 py-2 border rounded-md text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Select Images (JPEG/PNG/WEBP, max 5MB each, up to 100 files)</label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleTemplateImagesChange}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                />
+              </div>
+              {templateImages.length > 0 && (
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">{templateImages.length} image(s) selected</p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto border rounded p-2">
+                    {templateImagePreviews.map((preview, i) => (
+                      <div key={i} className="relative group">
+                        <img src={preview} alt={templateImages[i].name} className="w-full h-20 object-cover rounded" />
+                        <button
+                          onClick={() => removeTemplateImage(i)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        >
+                          &times;
+                        </button>
+                        <p className="text-[10px] text-gray-500 truncate" title={templateImages[i].name}>{templateImages[i].name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex gap-3">
-                <button onClick={() => handleCreateTemplate(showTemplateForm)} className="bg-primary-600 text-white px-4 py-2 rounded-md">Create</button>
-                <button onClick={() => setShowTemplateForm(null)} className="bg-gray-300 px-4 py-2 rounded-md">Cancel</button>
+                <button
+                  onClick={() => handleCreateTemplate(showTemplateForm)}
+                  disabled={templateImages.length === 0 || uploadingTemplates}
+                  className="bg-primary-600 text-white px-4 py-2 rounded-md disabled:opacity-50 text-sm"
+                >
+                  {uploadingTemplates ? 'Uploading...' : `Upload ${templateImages.length} Template(s)`}
+                </button>
+                <button
+                  onClick={() => { setShowTemplateForm(null); setMaxUploadCount(1); setTemplateImages([]); setTemplateImagePreviews([]) }}
+                  className="bg-gray-300 px-4 py-2 rounded-md text-sm"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>

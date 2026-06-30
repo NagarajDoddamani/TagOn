@@ -97,6 +97,21 @@ export const productService = {
     await api.delete(`/products/templates/${templateId}`)
   },
 
+  async addTemplateImages(templateId, formData) {
+    const { data } = await api.post(`/products/templates/${templateId}/images`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return data
+  },
+
+  async deleteTemplateImage(imageId) {
+    await api.delete(`/products/templates/images/${imageId}`)
+  },
+
+  async reorderTemplateImages(templateId, imageIds) {
+    await api.put(`/products/templates/${templateId}/images/reorder`, imageIds)
+  },
+
   async toggleFeatured(id, featured) {
     const { data } = await api.put(`/products/${id}/featured?featured=${featured}`)
     return data

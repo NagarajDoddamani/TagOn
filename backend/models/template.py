@@ -10,7 +10,8 @@ class Template(Base):
     __tablename__ = "templates"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
+    template_group_id = Column(UUID(as_uuid=True), ForeignKey("template_groups.id"), nullable=True)
     name = Column(String(100), nullable=False)
     preview_image = Column(String(500), nullable=True)
     max_upload_count = Column(Integer, nullable=False, default=1)
@@ -21,3 +22,5 @@ class Template(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     product = relationship("Product", back_populates="templates")
+    template_group = relationship("TemplateGroup")
+    images = relationship("TemplateImage", back_populates="template", cascade="all, delete-orphan", order_by="TemplateImage.sort_order")

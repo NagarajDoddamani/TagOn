@@ -3,26 +3,21 @@ import { useSearchParams } from 'react-router-dom'
 import { productService } from '../../services/product.service'
 import ProductCard from '../../components/common/ProductCard'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import SearchComponent from '../../components/common/SearchComponent'
 
 export default function ProductListingPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [products, setProducts] = useState([])
-  const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState(searchParams.get('search') || '')
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '')
-  const [selectedType, setSelectedType] = useState(searchParams.get('type') || '')
+
+  const search = searchParams.get('search') || ''
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
       try {
-        const [productsData, categoriesData] = await Promise.all([
-          productService.getProducts(selectedCategory || undefined, selectedType || undefined, search || undefined, undefined, true),
-          productService.getCategories(),
-        ])
+        const productsData = await productService.getProducts(undefined, undefined, search || undefined, undefined, true)
         setProducts(productsData)
-        setCategories(categoriesData)
       } catch (err) {
         console.error(err)
       } finally {
@@ -30,46 +25,27 @@ export default function ProductListingPage() {
       }
     }
     load()
-  }, [selectedCategory, selectedType, search])
+  }, [search])
 
-  const handleSearch = (e) => {
-    e.preventDefault()
-    setSearchParams({ search })
+  const handleSearch = (searchValue) => {
+    if (searchValue) {
+      setSearchParams({ search: searchValue })
+    } else {
+      setSearchParams({})
+    }
   }
 
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Products</h1>
 
-      <div className="flex flex-wrap gap-4 mb-6">
-        <form onSubmit={handleSearch} className="flex-1 max-w-md">
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-        </form>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-md"
-        >
-          <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
-          ))}
-        </select>
-        <select
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-md"
-        >
-          <option value="">All Types</option>
-          <option value="customized">Customized</option>
-          <option value="ready_made">Ready-Made</option>
-        </select>
+      <div className="mb-6">
+        <SearchComponent
+          value={search}
+          onSearch={handleSearch}
+          placeholder="Search products..."
+          className="max-w-md mx-auto"
+        />
       </div>
 
       {loading ? (

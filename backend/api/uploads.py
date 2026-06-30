@@ -6,8 +6,6 @@ from models.user import User
 ALLOWED_MIME_TYPES = {
     "image/jpeg",
     "image/png",
-    "image/webp",
-    "image/gif",
 }
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
@@ -21,18 +19,24 @@ def validate_upload(file: UploadFile):
     unsafe_chars = set("<>:\"/\\|?*")
     if unsafe_chars.intersection(file.filename or ""):
         raise HTTPException(status_code=400, detail="Invalid filename")
-    return file
 
 
 router = APIRouter(prefix="/api/uploads", tags=["Uploads"])
 
 
 @router.post("/image")
-def upload_image_file(
+async def upload_image_file(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
     validate_upload(file)
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File size exceeds maximum of {MAX_FILE_SIZE // (1024*1024)} MB",
+        )
+    await file.seek(0)
     result = upload_image(file, folder="tagon/uploads")
     return result
 

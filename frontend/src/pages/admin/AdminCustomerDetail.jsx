@@ -4,6 +4,7 @@ import { adminService } from '../../services/admin.service'
 import { formatCurrency, formatDate, getStatusLabel } from '../../utils/helpers'
 import OrderStatusBadge from '../../components/common/OrderStatusBadge'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import { confirmBlockToggle, success as swalSuccess, error as swalError } from '../../utils/swal'
 
 export default function AdminCustomerDetail() {
   const { id } = useParams()
@@ -32,13 +33,15 @@ export default function AdminCustomerDetail() {
 
   const handleBlockToggle = async () => {
     if (!customer) return
+    const result = await confirmBlockToggle(customer.status)
+    if (!result.isConfirmed) return
     const newStatus = customer.status === 'active' ? 'suspended' : 'active'
-    if (!confirm(`Set this customer to "${newStatus}"?`)) return
     try {
       const updated = await adminService.updateCustomerStatus(id, newStatus)
       setCustomer((prev) => ({ ...prev, status: updated.status }))
+      swalSuccess(`Customer ${newStatus === 'suspended' ? 'blocked' : 'unblocked'}`)
     } catch (err) {
-      console.error(err)
+      swalError('Operation Failed', 'Failed to update customer status.')
     }
   }
 

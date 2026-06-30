@@ -1,14 +1,16 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { useAuthStore } from '../store/auth.store'
 import MainLayout from '../layouts/MainLayout'
 import AuthLayout from '../layouts/AuthLayout'
-import LoginPage from '../pages/auth/LoginPage'
-import RegisterPage from '../pages/auth/RegisterPage'
-import HomePage from '../pages/customer/HomePage'
+import LandingPage from '../pages/public/LandingPage'
 import ProductListingPage from '../pages/customer/ProductListingPage'
 import ProductDetailPage from '../pages/customer/ProductDetailPage'
 import OrdersPage from '../pages/customer/OrdersPage'
 import OrderDetailPage from '../pages/customer/OrderDetailPage'
+import LoginPage from '../pages/auth/LoginPage'
+import RegisterPage from '../pages/auth/RegisterPage'
+import ProfilePage from '../pages/customer/ProfilePage'
 import ProtectedRoute from '../components/common/ProtectedRoute'
 
 const AdminDashboard = lazy(() => import('../pages/admin/AdminDashboard'))
@@ -18,7 +20,9 @@ const AdminCustomerDetail = lazy(() => import('../pages/admin/AdminCustomerDetai
 const AdminSettings = lazy(() => import('../pages/admin/AdminSettings'))
 const AdminProductManagement = lazy(() => import('../pages/admin/AdminProductManagement'))
 const AdminOrderManagement = lazy(() => import('../pages/admin/AdminOrderManagement'))
+const AdminReviews = lazy(() => import('../pages/admin/AdminReviews'))
 const AdminOrderWorkspace = lazy(() => import('../pages/admin/AdminOrderWorkspace'))
+const AdminTemplateGroups = lazy(() => import('../pages/admin/AdminTemplateGroups'))
 
 function AdminSuspense({ children }) {
   return (
@@ -32,24 +36,48 @@ function AdminSuspense({ children }) {
   )
 }
 
+function NotFoundRedirect() {
+  const { isAuthenticated, user } = useAuthStore()
+  if (isAuthenticated && user?.role === 'admin') {
+    return <Navigate to="/admin" replace />
+  }
+  return <Navigate to="/" replace />
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <MainLayout />,
     children: [
-      { index: true, element: <ProtectedRoute><HomePage /></ProtectedRoute> },
-      { path: 'products', element: <ProtectedRoute><ProductListingPage /></ProtectedRoute> },
-      { path: 'products/:id', element: <ProtectedRoute><ProductDetailPage /></ProtectedRoute> },
-      { path: 'orders', element: <ProtectedRoute><OrdersPage /></ProtectedRoute> },
-      { path: 'orders/:id', element: <ProtectedRoute><OrderDetailPage /></ProtectedRoute> },
+      { index: true, element: <LandingPage /> },
+      { path: 'products', element: <ProductListingPage /> },
+      { path: 'products/:id', element: <ProductDetailPage /> },
+      {
+        path: 'orders',
+        element: <ProtectedRoute requireAuth><OrdersPage /></ProtectedRoute>,
+      },
+      {
+        path: 'orders/:id',
+        element: <ProtectedRoute requireAuth><OrderDetailPage /></ProtectedRoute>,
+      },
+      {
+        path: 'profile',
+        element: <ProtectedRoute requireAuth><ProfilePage /></ProtectedRoute>,
+      },
     ],
   },
   {
     path: '/',
     element: <AuthLayout />,
     children: [
-      { path: 'login', element: <LoginPage /> },
-      { path: 'register', element: <RegisterPage /> },
+      {
+        path: 'login',
+        element: <ProtectedRoute requireGuest><LoginPage /></ProtectedRoute>,
+      },
+      {
+        path: 'register',
+        element: <ProtectedRoute requireGuest><RegisterPage /></ProtectedRoute>,
+      },
     ],
   },
   {
@@ -64,10 +92,12 @@ export const router = createBrowserRouter([
       { path: 'customers', element: <ProtectedRoute requireAdmin><AdminSuspense><AdminCustomers /></AdminSuspense></ProtectedRoute> },
       { path: 'customers/:id', element: <ProtectedRoute requireAdmin><AdminSuspense><AdminCustomerDetail /></AdminSuspense></ProtectedRoute> },
       { path: 'settings', element: <ProtectedRoute requireAdmin><AdminSuspense><AdminSettings /></AdminSuspense></ProtectedRoute> },
+      { path: 'reviews', element: <ProtectedRoute requireAdmin><AdminSuspense><AdminReviews /></AdminSuspense></ProtectedRoute> },
+      { path: 'template-groups', element: <ProtectedRoute requireAdmin><AdminSuspense><AdminTemplateGroups /></AdminSuspense></ProtectedRoute> },
     ],
   },
   {
     path: '*',
-    element: <Navigate to="/" replace />,
+    element: <NotFoundRedirect />,
   },
 ])

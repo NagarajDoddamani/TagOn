@@ -27,5 +27,5 @@ class RateLimiter:
 
 
 # Pre-configured instances
-auth_rate_limit = RateLimiter(max_requests=20, window_seconds=60)
+auth_rate_limit = RateLimiter(max_requests=5, window_seconds=60)
 general_rate_limit = RateLimiter(max_requests=60, window_seconds=60)

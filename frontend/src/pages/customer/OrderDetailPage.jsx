@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { orderService } from '../../services/order.service'
 import { paymentService } from '../../services/payment.service'
+import { toast } from '../../store/toast.store'
 import OrderStatusBadge from '../../components/common/OrderStatusBadge'
-import { formatCurrency, formatDate, getStatusLabel } from '../../utils/helpers'
+import { formatCurrency, formatDate } from '../../utils/helpers'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ChatWindow from '../../components/customer/ChatWindow'
 import DesignPreviewPanel from '../../components/customer/DesignPreviewPanel'
@@ -30,9 +31,11 @@ export default function OrderDetailPage() {
         try {
           const paymentData = await paymentService.getPayment(id)
           setPayment(paymentData)
-        } catch {}
-      } catch (err) {
-        console.error(err)
+        } catch {
+          // no payment yet
+        }
+      } catch {
+        toast.error('Failed to load order')
       } finally {
         setLoading(false)
       }
@@ -41,19 +44,26 @@ export default function OrderDetailPage() {
   }, [id])
 
   if (loading) return <LoadingSpinner />
-  if (!order) return <p className="text-center py-12">Order not found</p>
+  if (!order) return (
+    <div className="text-center py-16">
+      <p className="text-gray-500 text-lg">Order not found</p>
+    </div>
+  )
 
   return (
     <div>
+      <div className="flex items-center gap-3 mb-2">
+        <Link to="/orders" className="text-gray-500 hover:text-gray-700 text-sm">
+          &larr; Back to Orders
+        </Link>
+      </div>
       <div className="flex items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold">Order #{order.id.slice(0, 8)}</h1>
         <OrderStatusBadge status={order.order_status} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Left column - Order info + Payment + Uploads */}
         <div className="xl:col-span-2 space-y-6">
-          {/* Order Details & Delivery Address */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold mb-4">Order Details</h2>
@@ -97,7 +107,6 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Customization Notes */}
           {order.customization_notes && (
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold mb-4">Customization Notes</h2>
@@ -105,7 +114,6 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* Uploaded Images */}
           {order.uploaded_images && order.uploaded_images.length > 0 && (
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold mb-4">Uploaded Images</h2>
@@ -117,7 +125,6 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* Payment Information */}
           {payment && (
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold mb-4">Payment Information</h2>
@@ -125,7 +132,7 @@ export default function OrderDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Verification Status</span>
                   <span className={`font-medium ${payment.verification_status === 'verified' ? 'text-green-600' : payment.verification_status === 'rejected' ? 'text-red-600' : 'text-yellow-600'}`}>
-                    {payment.verification_status}
+                    {payment.verification_status === 'verified' ? 'Verified' : payment.verification_status === 'rejected' ? 'Rejected' : 'Pending'}
                   </span>
                 </div>
                 {payment.transaction_id && <p><strong>Transaction ID:</strong> {payment.transaction_id}</p>}
@@ -139,7 +146,6 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* Design Preview */}
           <DesignPreviewPanel
             orderId={order.id}
             isCustomized={order.is_customized}
@@ -147,7 +153,6 @@ export default function OrderDetailPage() {
           />
         </div>
 
-        {/* Right column - Chat + Timeline */}
         <div className="space-y-6">
           <ChatWindow orderId={order.id} orderStatus={order.order_status} />
           <OrderTimeline orderId={order.id} />

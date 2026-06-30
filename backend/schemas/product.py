@@ -56,18 +56,31 @@ class VariantResponse(BaseModel):
 
 class TemplateCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    max_upload_count: int = Field(1, ge=1, le=20)
+    max_upload_count: int = Field(1, ge=1, le=100)
     orientation: Optional[str] = None
-    preview_image: Optional[str] = None
+
+
+class TemplateImageResponse(BaseModel):
+    id: str
+    image_url: str
+    sort_order: int
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
+
+    class Config:
+        from_attributes = True
 
 
 class TemplateResponse(BaseModel):
     id: str
     name: str
-    preview_image: Optional[str]
     max_upload_count: int
     orientation: Optional[str]
     status: str
+    images: List[TemplateImageResponse] = []
 
     @field_validator("id", mode="before")
     @classmethod
@@ -106,6 +119,7 @@ class ProductUpdate(BaseModel):
 class ProductResponse(BaseModel):
     id: str
     category_id: str
+    template_group_id: Optional[str] = None
     name: str
     description: Optional[str]
     base_price: float
@@ -121,7 +135,7 @@ class ProductResponse(BaseModel):
     variants: List[VariantResponse] = []
     templates: List[TemplateResponse] = []
 
-    @field_validator("id", "category_id", mode="before")
+    @field_validator("id", "category_id", "template_group_id", mode="before")
     @classmethod
     def coerce_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v
@@ -148,6 +162,7 @@ class ProductResponse(BaseModel):
 class ProductListResponse(BaseModel):
     id: str
     category_id: str
+    template_group_id: Optional[str] = None
     name: str
     description: Optional[str]
     base_price: float
@@ -161,7 +176,7 @@ class ProductListResponse(BaseModel):
     low_stock_threshold: int = 5
     category: Optional[CategoryResponse]
 
-    @field_validator("id", "category_id", mode="before")
+    @field_validator("id", "category_id", "template_group_id", mode="before")
     @classmethod
     def coerce_uuid(cls, v):
         return str(v) if isinstance(v, UUID) else v

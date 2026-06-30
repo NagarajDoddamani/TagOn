@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 from core.database import get_db
 from core.security import get_current_user, require_admin
 from core.cloudinary import upload_image
 from schemas.product import (
     ProductCreate, ProductUpdate, ProductResponse, ProductListResponse,
     CategoryCreate, CategoryResponse, VariantCreate, VariantUpdate, VariantResponse,
-    TemplateCreate, TemplateResponse,
+    TemplateCreate, TemplateResponse, TemplateImageResponse,
 )
 from services.product_service import ProductService
 from models.user import User
@@ -55,6 +55,7 @@ def create_product(
     base_price: float = Form(...),
     product_type: str = Form(...),
     customizable: bool = Form(False),
+    template_group_id: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -71,6 +72,7 @@ def create_product(
         "base_price": base_price,
         "product_type": product_type,
         "customizable": customizable,
+        "template_group_id": template_group_id or None,
         "image_url": image_url,
     }
     service = ProductService(db)
@@ -119,6 +121,7 @@ def update_product(
     base_price: Optional[float] = Form(None),
     product_type: Optional[str] = Form(None),
     customizable: Optional[bool] = Form(None),
+    template_group_id: Optional[str] = Form(None),
     status: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
@@ -135,6 +138,8 @@ def update_product(
         data["product_type"] = product_type
     if customizable is not None:
         data["customizable"] = customizable
+    if template_group_id is not None:
+        data["template_group_id"] = template_group_id if template_group_id else None
     if status is not None:
         data["status"] = status
     if image:
@@ -224,27 +229,30 @@ def create_template(
     name: str = Form(...),
     max_upload_count: int = Form(1),
     orientation: Optional[str] = Form(None),
-    preview_image: Optional[UploadFile] = File(None),
+    images: Optional[List[UploadFile]] = File(None),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    image_url = None
-    if preview_image:
-        result = upload_image(preview_image, folder="tagon/templates")
-        image_url = result["url"]
-
     service = ProductService(db)
-    return service.create_template(
+    template = service.create_template(
         product_id=product_id, name=name,
         max_upload_count=max_upload_count,
-        orientation=orientation, preview_image=image_url,
+        orientation=orientation,
         admin_id=str(admin.id),
     )
+    if images:
+        image_urls = []
+        for img in images:
+            result = upload_image(img, folder="tagon/templates")
+            image_urls.append(result["url"])
+        service.add_template_images(str(template.id), image_urls, admin_id=str(admin.id))
+    from repositories.product_repository import TemplateRepository, TemplateImageRepository
+    template = TemplateRepository(db).get_by_id(str(template.id))
+    return template
 
 
 @router.get("/{product_id}/templates", response_model=list[TemplateResponse])
 def get_templates(product_id: str, db: Session = Depends(get_db)):
-    service = ProductService(db)
     from repositories.product_repository import TemplateRepository
     return TemplateRepository(db).get_by_product(product_id)
 
@@ -253,6 +261,44 @@ def get_templates(product_id: str, db: Session = Depends(get_db)):
 def update_template(template_id: str, request: TemplateCreate, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     service = ProductService(db)
     return service.update_template(template_id, request.model_dump(exclude_unset=True), admin_id=str(admin.id))
+
+
+@router.post("/templates/{template_id}/images", response_model=list[TemplateImageResponse])
+def add_template_images(
+    template_id: str,
+    images: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    service = ProductService(db)
+    image_urls = []
+    for img in images:
+        result = upload_image(img, folder="tagon/templates")
+        image_urls.append(result["url"])
+    return service.add_template_images(template_id, image_urls, admin_id=str(admin.id))
+
+
+@router.delete("/templates/images/{image_id}")
+def delete_template_image(
+    image_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    service = ProductService(db)
+    service.delete_template_image(image_id, admin_id=str(admin.id))
+    return {"message": "Template image deleted"}
+
+
+@router.put("/templates/{template_id}/images/reorder")
+def reorder_template_images(
+    template_id: str,
+    image_ids: list[str],
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    service = ProductService(db)
+    service.reorder_template_images(template_id, image_ids, admin_id=str(admin.id))
+    return {"message": "Images reordered"}
 
 
 @router.delete("/templates/{template_id}")

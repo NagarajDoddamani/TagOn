@@ -7,7 +7,7 @@ from core.database import engine, Base, SessionLocal
 from core.config import settings
 from core.middleware import SecurityHeadersMiddleware
 from core.logging_config import RequestLoggingMiddleware
-from api import auth, products, orders, payments, notifications, admin, uploads, chat, designs, reports
+from api import auth, products, orders, payments, notifications, admin, uploads, chat, designs, reports, reviews, addresses, template_groups
 
 app = FastAPI(
     title="TagOn API",
@@ -52,6 +52,9 @@ app.include_router(uploads.router)
 app.include_router(chat.router)
 app.include_router(designs.router)
 app.include_router(reports.router)
+app.include_router(reviews.router)
+app.include_router(addresses.router)
+app.include_router(template_groups.router)
 
 
 @app.get(f"{settings.API_PREFIX}/health")

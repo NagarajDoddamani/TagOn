@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { chatService } from '../../services/chat.service'
+import { toast } from '../../store/toast.store'
 import { formatDate } from '../../utils/helpers'
 import { useAuthStore } from '../../store/auth.store'
 
@@ -39,7 +40,7 @@ export default function ChatWindow({ orderId, orderStatus }) {
       await chatService.sendMessage(orderId, text.trim())
       setText('')
       await loadMessages()
-    } catch (e) { console.error(e) } finally { setSending(false) }
+    } catch { toast.error('Failed to send message') } finally { setSending(false) }
   }
 
   async function handleFileUpload(e) {
@@ -49,7 +50,8 @@ export default function ChatWindow({ orderId, orderStatus }) {
     try {
       await chatService.uploadAttachment(orderId, file)
       await loadMessages()
-    } catch (e) { console.error(e) } finally { setSending(false) }
+      toast.success('File uploaded')
+    } catch { toast.error('Failed to upload file') } finally { setSending(false) }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 

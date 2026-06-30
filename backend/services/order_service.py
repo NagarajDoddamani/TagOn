@@ -111,8 +111,10 @@ class OrderService:
             raise NotFoundException("Order not found")
         return order
 
-    def get_customer_orders(self, customer_id: str):
-        return self.order_repo.get_by_customer(customer_id)
+    def get_customer_orders(self, customer_id: str, status: Optional[str] = None):
+        from repositories.order_repository import OrderRepository
+        repo = OrderRepository(self.db)
+        return repo.get_by_customer(customer_id, status=status)
 
     def get_all_orders(self, status: str = None, page: Optional[int] = None, per_page: int = 20):
         return self.order_repo.get_all(status=status, page=page, per_page=per_page)

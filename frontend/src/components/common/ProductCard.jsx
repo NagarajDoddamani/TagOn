@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { formatCurrency } from '../../utils/helpers'
+import { formatCurrency, NO_IMAGE_FALLBACK } from '../../utils/helpers'
 
 export default function ProductCard({ product }) {
   return (
@@ -10,11 +10,11 @@ export default function ProductCard({ product }) {
         </span>
       )}
       <img
-        src={product.image_url || 'https://via.placeholder.com/300'}
+        src={product.image_url || NO_IMAGE_FALLBACK}
         alt={product.name}
         loading="lazy"
         className="w-full h-48 object-cover"
-        onError={(e) => { e.target.src = 'https://via.placeholder.com/300'; }}
+        onError={(e) => { e.target.onerror = null; e.target.src = NO_IMAGE_FALLBACK; }}
       />
       <div className="p-4">
         <span className="text-xs text-primary-600 font-semibold uppercase">
