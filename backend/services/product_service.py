@@ -109,6 +109,27 @@ class ProductService:
         )
         return variant
 
+    def update_variant(self, variant_id: str, data: dict, admin_id: str):
+        variant = self.variant_repo.get_by_id(variant_id)
+        if not variant:
+            raise NotFoundException("Variant not found")
+        variant = self.variant_repo.update(variant, data)
+        self.log_repo.create(
+            user_id=admin_id, action="variant_update",
+            entity_type="variant", entity_id=str(variant.id),
+        )
+        return variant
+
+    def delete_variant(self, variant_id: str, admin_id: str):
+        variant = self.variant_repo.get_by_id(variant_id)
+        if not variant:
+            raise NotFoundException("Variant not found")
+        self.variant_repo.delete(variant)
+        self.log_repo.create(
+            user_id=admin_id, action="variant_delete",
+            entity_type="variant", entity_id=str(variant.id),
+        )
+
     def create_template(self, product_id: str, name: str, max_upload_count: int, orientation: Optional[str], preview_image: Optional[str], admin_id: str):
         product = self.product_repo.get_by_id(product_id)
         if not product:

@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+from uuid import UUID
 
 
 class RegisterRequest(BaseModel):
@@ -27,6 +28,11 @@ class UserResponse(BaseModel):
     phone: str
     role: str
     status: str
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
 
     class Config:
         from_attributes = True

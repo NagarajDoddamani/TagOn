@@ -1,17 +1,24 @@
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
+from urllib.parse import urlparse, urlunparse
 import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from core.database import Base
+from core.config import settings
 from models import *
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Override database URL from settings (supports Supabase pooled URLs with query params)
+parsed = urlparse(settings.DATABASE_URL)
+clean_url = urlunparse(parsed._replace(query=""))
+config.set_main_option("sqlalchemy.url", clean_url)
 
 target_metadata = Base.metadata
 

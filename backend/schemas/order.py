@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
+from uuid import UUID
 
 
 class DeliveryAddress(BaseModel):
@@ -39,6 +40,11 @@ class OrderResponse(BaseModel):
     uploaded_images: Optional[list]
     created_at: datetime
 
+    @field_validator("id", "customer_id", "product_id", "variant_id", "template_id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
+
     class Config:
         from_attributes = True
 
@@ -51,6 +57,11 @@ class OrderListResponse(BaseModel):
     payment_status: str
     is_customized: bool
     created_at: datetime
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
 
     class Config:
         from_attributes = True

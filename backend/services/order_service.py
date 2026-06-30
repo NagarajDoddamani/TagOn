@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from core.exceptions import NotFoundException
 from repositories.order_repository import OrderRepository, OrderStatusHistoryRepository
-from repositories.product_repository import ProductRepository
+from repositories.product_repository import ProductRepository, VariantRepository
 from repositories.payment_repository import PaymentRepository
 from repositories.notification_repository import NotificationRepository
 from repositories.activity_log_repository import ActivityLogRepository
@@ -12,6 +12,7 @@ class OrderService:
         self.order_repo = OrderRepository(db)
         self.status_repo = OrderStatusHistoryRepository(db)
         self.product_repo = ProductRepository(db)
+        self.variant_repo = VariantRepository(db)
         self.payment_repo = PaymentRepository(db)
         self.notification_repo = NotificationRepository(db)
         self.log_repo = ActivityLogRepository(db)
@@ -23,7 +24,7 @@ class OrderService:
 
         total_amount = product.base_price
         if data.get("variant_id"):
-            variant = self.product_repo.variant_repo.get_by_id(data["variant_id"])
+            variant = self.variant_repo.get_by_id(data["variant_id"])
             if variant:
                 total_amount = variant.price
 

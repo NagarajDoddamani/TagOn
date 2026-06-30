@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { productService } from '../../services/product.service'
-import type { ProductListItem, Category, Template } from '../../types'
+import type { ProductListItem, Category, ProductVariant } from '../../types'
 import { formatCurrency } from '../../utils/helpers'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 
@@ -8,19 +8,30 @@ export default function AdminProductManagement() {
   const [products, setProducts] = useState<ProductListItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products')
+
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<string | null>(null)
-  const [showCategoryForm, setShowCategoryForm] = useState(false)
-  const [showTemplateForm, setShowTemplateForm] = useState<string | null>(null)
-
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [basePrice, setBasePrice] = useState('')
   const [productType, setProductType] = useState('customized')
   const [customizable, setCustomizable] = useState(false)
   const [categoryId, setCategoryId] = useState('')
+
+  const [showCategoryForm, setShowCategoryForm] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [catName, setCatName] = useState('')
   const [catDesc, setCatDesc] = useState('')
+
+  const [showVariantPanel, setShowVariantPanel] = useState<string | null>(null)
+  const [variants, setVariants] = useState<ProductVariant[]>([])
+  const [variantName, setVariantName] = useState('')
+  const [variantPrice, setVariantPrice] = useState('')
+  const [variantStock, setVariantStock] = useState('0')
+  const [editingVariant, setEditingVariant] = useState<string | null>(null)
+
+  const [showTemplateForm, setShowTemplateForm] = useState<string | null>(null)
   const [templateName, setTemplateName] = useState('')
   const [maxUploadCount, setMaxUploadCount] = useState(1)
 
@@ -62,7 +73,6 @@ export default function AdminProductManagement() {
     formData.append('product_type', productType)
     formData.append('customizable', String(customizable))
     if (description) formData.append('description', description)
-
     try {
       if (editingProduct) {
         await productService.updateProduct(editingProduct, formData)
@@ -76,16 +86,131 @@ export default function AdminProductManagement() {
     }
   }
 
-  const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleEditProduct = (p: ProductListItem) => {
+    setName(p.name)
+    setDescription(p.description || '')
+    setBasePrice(String(p.base_price))
+    setProductType(p.product_type)
+    setCustomizable(p.customizable)
+    setCategoryId(p.category_id)
+    setEditingProduct(p.id)
+    setShowForm(true)
+  }
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm('Delete this product?')) return
     try {
-      await productService.createCategory(catName, catDesc || undefined)
+      await productService.deleteProduct(id)
+      loadData()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const resetCategoryForm = () => {
+    setCatName('')
+    setCatDesc('')
+    setEditingCategory(null)
+    setShowCategoryForm(false)
+  }
+
+  const handleOpenCategoryForm = (cat?: Category) => {
+    if (cat) {
+      setCatName(cat.name)
+      setCatDesc(cat.description || '')
+      setEditingCategory(cat.id)
+    } else {
       setCatName('')
       setCatDesc('')
-      setShowCategoryForm(false)
+      setEditingCategory(null)
+    }
+    setShowCategoryForm(true)
+  }
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      if (editingCategory) {
+        await productService.updateCategory(editingCategory, catName, catDesc || undefined)
+      } else {
+        await productService.createCategory(catName, catDesc || undefined)
+      }
+      resetCategoryForm()
       loadData()
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to create category')
+      alert(err.response?.data?.detail || 'Failed to save category')
+    }
+  }
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm('Delete this category? Products in this category may break.')) return
+    try {
+      await productService.deleteCategory(id)
+      loadData()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const loadVariants = async (productId: string) => {
+    try {
+      const data = await productService.getVariants(productId)
+      setVariants(data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleOpenVariants = async (productId: string) => {
+    setShowVariantPanel(productId)
+    setVariantName('')
+    setVariantPrice('')
+    setVariantStock('0')
+    setEditingVariant(null)
+    await loadVariants(productId)
+  }
+
+  const handleSaveVariant = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!showVariantPanel) return
+    try {
+      if (editingVariant) {
+        await productService.updateVariant(editingVariant, {
+          name: variantName,
+          price: Number(variantPrice),
+          stock: Number(variantStock),
+        })
+      } else {
+        await productService.createVariant(showVariantPanel, {
+          name: variantName,
+          price: Number(variantPrice),
+          stock: Number(variantStock),
+        })
+      }
+      setVariantName('')
+      setVariantPrice('')
+      setVariantStock('0')
+      setEditingVariant(null)
+      await loadVariants(showVariantPanel)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to save variant')
+    }
+  }
+
+  const handleEditVariant = (v: ProductVariant) => {
+    setVariantName(v.name)
+    setVariantPrice(String(v.price))
+    setVariantStock(String(v.stock))
+    setEditingVariant(v.id)
+  }
+
+  const handleDeleteVariant = async (id: string) => {
+    if (!confirm('Delete this variant?')) return
+    try {
+      await productService.deleteVariant(id)
+      if (showVariantPanel) await loadVariants(showVariantPanel)
+    } catch (err) {
+      console.error(err)
     }
   }
 
@@ -104,10 +229,10 @@ export default function AdminProductManagement() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!confirm('Delete this template?')) return
     try {
-      await productService.deleteProduct(id)
+      await productService.deleteTemplate(templateId)
       loadData()
     } catch (err) {
       console.error(err)
@@ -120,38 +245,107 @@ export default function AdminProductManagement() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Product Management</h1>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowCategoryForm(true)}
-            className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
-          >
-            New Category
-          </button>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
-          >
-            New Product
-          </button>
-        </div>
+        {activeTab === 'products' && (
+          <button onClick={() => { resetForm(); setShowForm(true) }} className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700">New Product</button>
+        )}
       </div>
 
+      <div className="flex gap-4 mb-6">
+        <button onClick={() => setActiveTab('products')} className={`px-4 py-2 rounded-md ${activeTab === 'products' ? 'bg-primary-600 text-white' : 'bg-gray-200'}`}>Products</button>
+        <button onClick={() => setActiveTab('categories')} className={`px-4 py-2 rounded-md ${activeTab === 'categories' ? 'bg-primary-600 text-white' : 'bg-gray-200'}`}>Categories</button>
+      </div>
+
+      {/* ---- Category Tab ---- */}
+      {activeTab === 'categories' && (
+        <div>
+          <div className="mb-4">
+            <button onClick={() => handleOpenCategoryForm()} className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">New Category</button>
+          </div>
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {categories.map((c) => (
+                  <tr key={c.id}>
+                    <td className="px-6 py-4">{c.name}</td>
+                    <td className="px-6 py-4 text-gray-500">{c.description || '-'}</td>
+                    <td className="px-6 py-4"><span className="px-2 py-1 rounded text-xs bg-green-100 text-green-800">{c.status}</span></td>
+                    <td className="px-6 py-4 flex gap-2">
+                      <button onClick={() => handleOpenCategoryForm(c)} className="text-sm text-primary-600 hover:underline">Edit</button>
+                      <button onClick={() => handleDeleteCategory(c.id)} className="text-sm text-red-600 hover:underline">Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Category Form Modal ---- */}
       {showCategoryForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Create Category</h2>
-            <form onSubmit={handleCreateCategory} className="space-y-4">
+            <h2 className="text-xl font-bold mb-4">{editingCategory ? 'Edit Category' : 'Create Category'}</h2>
+            <form onSubmit={handleSaveCategory} className="space-y-4">
               <input value={catName} onChange={(e) => setCatName(e.target.value)} placeholder="Category Name" required className="w-full px-3 py-2 border rounded-md" />
               <input value={catDesc} onChange={(e) => setCatDesc(e.target.value)} placeholder="Description (optional)" className="w-full px-3 py-2 border rounded-md" />
               <div className="flex gap-3">
-                <button type="submit" className="bg-primary-600 text-white px-4 py-2 rounded-md">Create</button>
-                <button type="button" onClick={() => setShowCategoryForm(false)} className="bg-gray-300 px-4 py-2 rounded-md">Cancel</button>
+                <button type="submit" className="bg-primary-600 text-white px-4 py-2 rounded-md">{editingCategory ? 'Update' : 'Create'}</button>
+                <button type="button" onClick={resetCategoryForm} className="bg-gray-300 px-4 py-2 rounded-md">Cancel</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* ---- Product Tab ---- */}
+      {activeTab === 'products' && (
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {products.map((p) => (
+                <tr key={p.id}>
+                  <td className="px-6 py-4">{p.name}</td>
+                  <td className="px-6 py-4">{p.category?.name}</td>
+                  <td className="px-6 py-4">{formatCurrency(p.base_price)}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded text-xs ${p.customizable ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {p.customizable ? 'Custom' : p.product_type}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={() => handleEditProduct(p)} className="text-sm text-primary-600 hover:underline">Edit</button>
+                      <button onClick={() => handleOpenVariants(p.id)} className="text-sm text-indigo-600 hover:underline">Variants</button>
+                      <button onClick={() => { setShowTemplateForm(p.id); setTemplateName(''); setMaxUploadCount(1) }} className="text-sm text-purple-600 hover:underline">+Template</button>
+                      <button onClick={() => handleDeleteProduct(p.id)} className="text-sm text-red-600 hover:underline">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ---- Product Form Modal ---- */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-full max-w-lg">
@@ -181,6 +375,42 @@ export default function AdminProductManagement() {
         </div>
       )}
 
+      {/* ---- Variant Panel ---- */}
+      {showVariantPanel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Manage Variants</h2>
+              <button onClick={() => setShowVariantPanel(null)} className="text-gray-500 text-xl">&times;</button>
+            </div>
+            <form onSubmit={handleSaveVariant} className="flex gap-2 mb-4">
+              <input value={variantName} onChange={(e) => setVariantName(e.target.value)} placeholder="Name" required className="flex-1 px-3 py-2 border rounded-md" />
+              <input value={variantPrice} onChange={(e) => setVariantPrice(e.target.value)} type="number" step="0.01" placeholder="Price" required className="w-24 px-3 py-2 border rounded-md" />
+              <input value={variantStock} onChange={(e) => setVariantStock(e.target.value)} type="number" placeholder="Stock" className="w-20 px-3 py-2 border rounded-md" />
+              <button type="submit" className="bg-primary-600 text-white px-4 py-2 rounded-md">{editingVariant ? 'Update' : 'Add'}</button>
+              {editingVariant && <button type="button" onClick={() => { setEditingVariant(null); setVariantName(''); setVariantPrice(''); setVariantStock('0') }} className="bg-gray-300 px-3 py-2 rounded-md">Cancel</button>}
+            </form>
+            <table className="w-full">
+              <thead><tr className="bg-gray-50"><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Stock</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th></tr></thead>
+              <tbody className="divide-y divide-gray-200">
+                {variants.map((v) => (
+                  <tr key={v.id}>
+                    <td className="px-4 py-2">{v.name}</td>
+                    <td className="px-4 py-2">{formatCurrency(v.price)}</td>
+                    <td className="px-4 py-2">{v.stock}</td>
+                    <td className="px-4 py-2 flex gap-2">
+                      <button onClick={() => handleEditVariant(v)} className="text-sm text-primary-600 hover:underline">Edit</button>
+                      <button onClick={() => handleDeleteVariant(v.id)} className="text-sm text-red-600 hover:underline">Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Template Form Modal ---- */}
       {showTemplateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-full max-w-md">
@@ -196,38 +426,6 @@ export default function AdminProductManagement() {
           </div>
         </div>
       )}
-
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {products.map((p) => (
-              <tr key={p.id}>
-                <td className="px-6 py-4">{p.name}</td>
-                <td className="px-6 py-4">{p.category?.name}</td>
-                <td className="px-6 py-4">{formatCurrency(p.base_price)}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded text-xs ${p.customizable ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {p.customizable ? 'Custom' : p.product_type}
-                  </span>
-                </td>
-                <td className="px-6 py-4 flex gap-2">
-                  <button onClick={() => setShowTemplateForm(p.id)} className="text-sm text-primary-600 hover:underline">+Template</button>
-                  <button onClick={() => handleDelete(p.id)} className="text-sm text-red-600 hover:underline">Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }

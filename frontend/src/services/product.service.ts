@@ -63,6 +63,15 @@ export const productService = {
     return data
   },
 
+  async updateVariant(variantId: string, variant: { name?: string; price?: number; stock?: number; image_url?: string }) {
+    const { data } = await api.put(`/products/variants/${variantId}`, variant)
+    return data
+  },
+
+  async deleteVariant(variantId: string) {
+    await api.delete(`/products/variants/${variantId}`)
+  },
+
   async getTemplates(productId: string) {
     const { data } = await api.get<Template[]>(`/products/${productId}/templates`)
     return data

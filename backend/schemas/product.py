@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
+from uuid import UUID
 
 
 class CategoryCreate(BaseModel):
@@ -14,6 +15,11 @@ class CategoryResponse(BaseModel):
     description: Optional[str]
     status: str
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
+
     class Config:
         from_attributes = True
 
@@ -25,12 +31,24 @@ class VariantCreate(BaseModel):
     image_url: Optional[str] = None
 
 
+class VariantUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    price: Optional[float] = Field(None, ge=0)
+    stock: Optional[int] = Field(None, ge=0)
+    image_url: Optional[str] = None
+
+
 class VariantResponse(BaseModel):
     id: str
     name: str
     price: float
     stock: int
     image_url: Optional[str]
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
 
     class Config:
         from_attributes = True
@@ -50,6 +68,11 @@ class TemplateResponse(BaseModel):
     max_upload_count: int
     orientation: Optional[str]
     status: str
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
 
     class Config:
         from_attributes = True
@@ -90,6 +113,11 @@ class ProductResponse(BaseModel):
     variants: List[VariantResponse] = []
     templates: List[TemplateResponse] = []
 
+    @field_validator("id", "category_id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
+
     class Config:
         from_attributes = True
 
@@ -105,6 +133,11 @@ class ProductListResponse(BaseModel):
     status: str
     image_url: Optional[str]
     category: Optional[CategoryResponse]
+
+    @field_validator("id", "category_id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
 
     class Config:
         from_attributes = True

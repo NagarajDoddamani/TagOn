@@ -92,6 +92,13 @@ class VariantRepository:
         self.db.refresh(variant)
         return variant
 
+    def update(self, variant: ProductVariant, data: dict) -> ProductVariant:
+        for key, value in data.items():
+            setattr(variant, key, value)
+        self.db.commit()
+        self.db.refresh(variant)
+        return variant
+
     def get_by_id(self, variant_id: str) -> ProductVariant:
         return self.db.query(ProductVariant).filter(ProductVariant.id == variant_id).first()
 

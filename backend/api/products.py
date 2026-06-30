@@ -6,7 +6,7 @@ from core.security import get_current_user, require_admin
 from core.cloudinary import upload_image
 from schemas.product import (
     ProductCreate, ProductUpdate, ProductResponse, ProductListResponse,
-    CategoryCreate, CategoryResponse, VariantCreate, VariantResponse,
+    CategoryCreate, CategoryResponse, VariantCreate, VariantUpdate, VariantResponse,
     TemplateCreate, TemplateResponse,
 )
 from services.product_service import ProductService
@@ -148,9 +148,21 @@ def create_variant(
     )
 
 
+@router.put("/variants/{variant_id}", response_model=VariantResponse)
+def update_variant(variant_id: str, request: VariantUpdate, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    service = ProductService(db)
+    return service.update_variant(variant_id, request.model_dump(exclude_unset=True), admin_id=str(admin.id))
+
+
+@router.delete("/variants/{variant_id}")
+def delete_variant(variant_id: str, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    service = ProductService(db)
+    service.delete_variant(variant_id, admin_id=str(admin.id))
+    return {"message": "Variant deleted successfully"}
+
+
 @router.get("/{product_id}/variants", response_model=list[VariantResponse])
 def get_variants(product_id: str, db: Session = Depends(get_db)):
-    service = ProductService(db)
     from repositories.product_repository import VariantRepository
     return VariantRepository(db).get_by_product(product_id)
 
