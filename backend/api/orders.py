@@ -8,6 +8,7 @@ from schemas.payment import PaymentResponse
 from services.order_service import OrderService
 from services.payment_service import PaymentService
 from models.user import User
+from datetime import datetime
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
@@ -92,3 +93,23 @@ def get_order_status_history(order_id: str, db: Session = Depends(get_db), curre
         }
         for h in history
     ]
+
+
+@router.get("/{order_id}/timeline")
+def get_order_timeline(order_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    service = OrderService(db)
+    order = service.get_order(order_id)
+    if current_user.role == "customer" and str(order.customer_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    timeline = service.get_timeline(order_id)
+    def serialize_dt(val):
+        if isinstance(val, datetime):
+            return val.isoformat()
+        if val is None:
+            return None
+        return str(val)
+    result = []
+    for entry in timeline:
+        entry["timestamp"] = serialize_dt(entry["timestamp"])
+        result.append(entry)
+    return result

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from core.database import engine, Base, SessionLocal
 from core.config import settings
-from api import auth, products, orders, payments, notifications, admin, uploads
+from api import auth, products, orders, payments, notifications, admin, uploads, chat, designs
 
 app = FastAPI(
     title="TagOn API",
@@ -37,6 +37,8 @@ app.include_router(payments.router)
 app.include_router(notifications.router)
 app.include_router(admin.router)
 app.include_router(uploads.router)
+app.include_router(chat.router)
+app.include_router(designs.router)
 
 
 @app.get(f"{settings.API_PREFIX}/health")

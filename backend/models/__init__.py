@@ -8,3 +8,5 @@ from .payment import Payment
 from .notification import Notification
 from .activity_log import ActivityLog
 from .order_status_history import OrderStatusHistory
+from .chat_message import ChatMessage
+from .design import DesignPreview, DesignRevision
