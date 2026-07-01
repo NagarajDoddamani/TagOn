@@ -1,12 +1,25 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { paymentService } from '../../services/payment.service'
 
 export default function Footer() {
+  const [biz, setBiz] = useState({ business_name: 'TagOn', logo_url: '', phone: '', email: '' })
+
+  useEffect(() => {
+    paymentService.getBusinessInfo().then(setBiz).catch(() => {})
+  }, [])
+
   return (
     <footer className="bg-gray-800 text-white mt-auto">
       <div className="max-w-7xl mx-auto px-4 py-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <h3 className="text-xl font-bold text-primary-400 mb-4">TagOn</h3>
+            <div className="flex items-center gap-2 mb-4">
+              {biz.logo_url && (
+                <img src={biz.logo_url} alt="Logo" className="h-8 w-auto rounded" onError={(e) => { e.target.style.display = 'none' }} />
+              )}
+              <h3 className="text-xl font-bold text-primary-400">{biz.business_name || 'TagOn'}</h3>
+            </div>
             <p className="text-gray-300 text-sm">
               Personalized gifts crafted with love. Create unique, memorable gifts for every occasion.
             </p>
@@ -23,8 +36,9 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold mb-3">Contact</h4>
             <ul className="space-y-2 text-sm text-gray-300">
-              <li>Email: support@tagon.com</li>
-              <li>Phone: +91 98765 43210</li>
+              {biz.email && <li>Email: {biz.email}</li>}
+              {biz.phone && <li>Phone: {biz.phone}</li>}
+              {!biz.email && !biz.phone && <li>Email: support@tagon.com</li>}
               <li>Follow us on social media</li>
             </ul>
           </div>
@@ -32,7 +46,7 @@ export default function Footer() {
       </div>
       <div className="border-t border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-4 text-center text-sm text-gray-400">
-          &copy; {new Date().getFullYear()} TagOn. All rights reserved.
+          &copy; {new Date().getFullYear()} {biz.business_name || 'TagOn'}. All rights reserved.
         </div>
       </div>
     </footer>

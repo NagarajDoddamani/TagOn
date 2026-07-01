@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
 
 
 class TemplateGroupCreate(BaseModel):
@@ -24,6 +25,11 @@ class TemplateGroupResponse(BaseModel):
     status: str
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
 
     class Config:
         from_attributes = True

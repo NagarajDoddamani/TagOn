@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
 
 
 class AddressCreate(BaseModel):
@@ -36,6 +37,11 @@ class AddressResponse(BaseModel):
     landmark: Optional[str]
     is_default: bool
     created_at: Optional[datetime]
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v) if isinstance(v, UUID) else v
 
     class Config:
         from_attributes = True

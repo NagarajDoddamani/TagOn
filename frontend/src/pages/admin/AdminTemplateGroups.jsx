@@ -17,6 +17,8 @@ export default function AdminTemplateGroups() {
   const [groupDesc, setGroupDesc] = useState('')
   const [groupImage, setGroupImage] = useState(null)
   const [groupImagePreview, setGroupImagePreview] = useState('')
+  const [designImages, setDesignImages] = useState([])
+  const [designImagePreviews, setDesignImagePreviews] = useState([])
   const [uploading, setUploading] = useState(false)
 
   const [selectedGroup, setSelectedGroup] = useState(null)
@@ -25,7 +27,6 @@ export default function AdminTemplateGroups() {
   const [pendingFiles, setPendingFiles] = useState([])
   const [pendingPreviews, setPendingPreviews] = useState([])
   const [uploadingTemplates, setUploadingTemplates] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState('')
   const [maxUploadCount, setMaxUploadCount] = useState(1)
 
   const loadGroups = async () => {
@@ -47,6 +48,8 @@ export default function AdminTemplateGroups() {
     setGroupDesc('')
     setGroupImage(null)
     setGroupImagePreview('')
+    setDesignImages([])
+    setDesignImagePreviews([])
     setEditingGroup(null)
     setShowForm(false)
   }
@@ -71,6 +74,33 @@ export default function AdminTemplateGroups() {
     setGroupImagePreview('')
   }
 
+  const handleDesignImagesChange = (e) => {
+    const files = Array.from(e.target.files || [])
+    let added = 0
+    for (const file of files) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast.error(`Skipping ${file.name}: Only JPEG, PNG, WEBP allowed`)
+        continue
+      }
+      if (file.size > MAX_SIZE) {
+        toast.error(`Skipping ${file.name}: Must be less than 5MB`)
+        continue
+      }
+      if (designImages.length + added >= 100) {
+        toast.error('Maximum 100 design images')
+        break
+      }
+      added++
+      setDesignImages((prev) => [...prev, file])
+      setDesignImagePreviews((prev) => [...prev, URL.createObjectURL(file)])
+    }
+  }
+
+  const removeDesignImage = (index) => {
+    setDesignImages((prev) => prev.filter((_, i) => i !== index))
+    setDesignImagePreviews((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const handleSave = async () => {
     if (!groupName.trim()) {
       toast.error('Group name is required')
@@ -78,22 +108,38 @@ export default function AdminTemplateGroups() {
     }
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('name', groupName)
-      if (groupDesc) formData.append('description', groupDesc)
-      if (groupImage) formData.append('preview_image', groupImage)
-
       if (editingGroup) {
+        const formData = new FormData()
+        formData.append('name', groupName)
+        if (groupDesc) formData.append('description', groupDesc)
+        if (groupImage) formData.append('preview_image', groupImage)
         await templateGroupService.updateGroup(editingGroup.id, formData)
         swalSuccess('Template group updated')
       } else {
-        await templateGroupService.createGroup(formData)
-        swalSuccess('Template group created')
+        const formData = new FormData()
+        formData.append('name', groupName)
+        if (groupDesc) formData.append('description', groupDesc)
+        for (const file of designImages) {
+          formData.append('design_images', file)
+        }
+        const result = await templateGroupService.createGroup(formData)
+        const created = result.templates_created || 0
+        const failed = result.templates_failed || 0
+        if (created > 0) {
+          swalSuccess(`Template group created with ${created} template(s)`)
+        } else {
+          swalSuccess('Template group created')
+        }
+        if (failed > 0) {
+          toast.error(`${failed} image(s) failed to upload`)
+        }
       }
       resetForm()
       loadGroups()
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to save template group')
+      const detail = err.response?.data?.detail
+      const msg = Array.isArray(detail) ? detail.map(d => d.msg || d.reason || String(d)).join(', ') : (detail || 'Failed to save template group')
+      toast.error(msg)
     } finally {
       setUploading(false)
     }
@@ -107,7 +153,9 @@ export default function AdminTemplateGroups() {
       swalSuccess('Template group deleted')
       loadGroups()
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to delete template group')
+      const detail = err.response?.data?.detail
+      const msg = Array.isArray(detail) ? detail.map(d => d.msg || String(d)).join(', ') : (detail || 'Failed to delete template group')
+      toast.error(msg)
     }
   }
 
@@ -169,7 +217,6 @@ export default function AdminTemplateGroups() {
       return
     }
     setUploadingTemplates(true)
-    setUploadProgress(`Uploading 0 of ${pendingFiles.length}...`)
     try {
       const result = await templateGroupService.createTemplatesBatch(
         selectedGroup.id,
@@ -182,8 +229,7 @@ export default function AdminTemplateGroups() {
         swalSuccess(`${created} template(s) created successfully`)
       }
       if (failed > 0) {
-        toast.error(`${failed} file(s) failed. Check console for details.`)
-        console.warn('Failed uploads:', result.failed)
+        toast.error(`${failed} file(s) failed`)
       }
       setShowUploadModal(false)
       setPendingFiles([])
@@ -191,10 +237,11 @@ export default function AdminTemplateGroups() {
       const data = await templateGroupService.getGroupTemplates(selectedGroup.id)
       setTemplates(data)
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to upload templates')
+      const detail = err.response?.data?.detail
+      const msg = Array.isArray(detail) ? detail.map(d => d.msg || String(d)).join(', ') : (detail || 'Failed to upload templates')
+      toast.error(msg)
     } finally {
       setUploadingTemplates(false)
-      setUploadProgress('')
     }
   }
 
@@ -208,7 +255,9 @@ export default function AdminTemplateGroups() {
       const data = await templateGroupService.getGroupTemplates(selectedGroup.id)
       setTemplates(data)
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to delete template')
+      const detail = err.response?.data?.detail
+      const msg = Array.isArray(detail) ? detail.map(d => d.msg || String(d)).join(', ') : (detail || 'Failed to delete template')
+      toast.error(msg)
     }
   }
 
@@ -265,25 +314,59 @@ export default function AdminTemplateGroups() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md animate-slide-up">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg animate-slide-up max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">{editingGroup ? 'Edit Template Group' : 'Create Template Group'}</h2>
             <div className="space-y-4">
               <input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Group Name" required className="w-full px-3 py-2 border rounded-md" />
               <textarea value={groupDesc} onChange={(e) => setGroupDesc(e.target.value)} placeholder="Description (optional)" rows={2} className="w-full px-3 py-2 border rounded-md" />
-              <div>
-                <label className="block text-sm font-medium mb-1">Preview Image</label>
-                {groupImagePreview ? (
-                  <div className="relative inline-block">
-                    <img src={groupImagePreview} alt="Preview" className="w-32 h-32 object-cover rounded" />
-                    <button onClick={removeImage} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs">&times;</button>
-                  </div>
-                ) : (
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="text-sm" />
-                )}
-              </div>
+
+              {editingGroup ? (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Preview Image</label>
+                  {groupImagePreview ? (
+                    <div className="relative inline-block">
+                      <img src={groupImagePreview} alt="Preview" className="w-32 h-32 object-cover rounded" />
+                      <button onClick={removeImage} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs">&times;</button>
+                    </div>
+                  ) : (
+                    <input type="file" accept="image/*" onChange={handleImageChange} className="text-sm" />
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Template Design Images</label>
+                  <p className="text-xs text-gray-500 mb-2">Each image becomes a separate Template record. First image is used as group thumbnail.</p>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleDesignImagesChange}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                  />
+                  {designImages.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">{designImages.length} image(s) selected</p>
+                  )}
+                  {designImagePreviews.length > 0 && (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-2 max-h-48 overflow-y-auto border rounded p-2">
+                      {designImagePreviews.map((preview, i) => (
+                        <div key={i} className="relative group">
+                          <img src={preview} alt={designImages[i].name} className="w-full h-20 object-cover rounded" />
+                          <button
+                            onClick={() => removeDesignImage(i)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          >
+                            &times;
+                          </button>
+                          <p className="text-[10px] text-gray-500 truncate" title={designImages[i].name}>{designImages[i].name}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <button onClick={handleSave} disabled={uploading} className="bg-primary-600 text-white px-4 py-2 rounded-md disabled:opacity-50">
-                  {uploading ? 'Saving...' : editingGroup ? 'Update' : 'Create'}
+                  {uploading ? 'Saving...' : editingGroup ? 'Update' : `Create${designImages.length > 0 ? ` (${designImages.length} template${designImages.length > 1 ? 's' : ''})` : ''}`}
                 </button>
                 <button onClick={resetForm} className="bg-gray-300 px-4 py-2 rounded-md">Cancel</button>
               </div>
@@ -394,7 +477,7 @@ export default function AdminTemplateGroups() {
                   disabled={pendingFiles.length === 0 || uploadingTemplates}
                   className="bg-primary-600 text-white px-4 py-2 rounded-md disabled:opacity-50 text-sm"
                 >
-                  {uploadingTemplates ? uploadProgress || 'Uploading...' : `Upload ${pendingFiles.length} Template(s)`}
+                  {uploadingTemplates ? 'Uploading...' : `Upload ${pendingFiles.length} Template(s)`}
                 </button>
                 <button
                   onClick={() => { setShowUploadModal(false); setPendingFiles([]); setPendingPreviews([]) }}

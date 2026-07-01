@@ -4,19 +4,21 @@ import { useAuthStore } from '../../store/auth.store'
 import { toast } from '../../store/toast.store'
 import { productService } from '../../services/product.service'
 import { templateGroupService } from '../../services/template-group.service'
+import { paymentService } from '../../services/payment.service'
 import { uploadService } from '../../services/upload.service'
 import { addressService } from '../../services/address.service'
 import { formatCurrency, NO_IMAGE_FALLBACK } from '../../utils/helpers'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 
-const DEFAULT_STEPS = [
+const CUSTOMIZABLE_STEPS = [
   { key: 'details', label: 'Details' },
+  { key: 'templates', label: 'Select Design' },
   { key: 'customize', label: 'Customize' },
   { key: 'address', label: 'Delivery' },
   { key: 'payment', label: 'Payment' },
 ]
 
-const STEPS_WITHOUT_CUSTOMIZE = [
+const SIMPLE_STEPS = [
   { key: 'details', label: 'Details' },
   { key: 'address', label: 'Delivery' },
   { key: 'payment', label: 'Payment' },
@@ -53,6 +55,7 @@ export default function ProductDetailPage() {
   const [loadingAddresses, setLoadingAddresses] = useState(false)
 
   const [effectiveTemplates, setEffectiveTemplates] = useState([])
+  const [qrUrl, setQrUrl] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -81,8 +84,12 @@ export default function ProductDetailPage() {
   }, [product])
 
   useEffect(() => {
+    paymentService.getQRCode().then(d => setQrUrl(d.qr_image_url || '')).catch(() => {})
+  }, [])
+
+  useEffect(() => {
     const pendingStep = sessionStorage.getItem(`order_step_${id}`)
-    if (pendingStep && STEPS.some(s => s.key === pendingStep)) {
+    if (pendingStep) {
       setStep(pendingStep)
       sessionStorage.removeItem(`order_step_${id}`)
     }
@@ -143,8 +150,7 @@ export default function ProductDetailPage() {
 
   const requireAuth = () => {
     if (!isAuthenticated) {
-      const savedStep = step === 'details' ? (needsCustomization ? 'customize' : 'address') : step
-      sessionStorage.setItem(`order_step_${id}`, savedStep)
+      sessionStorage.setItem(`order_step_${id}`, step)
       navigate(`/login?redirect=/products/${id}`)
       return false
     }
@@ -177,18 +183,32 @@ export default function ProductDetailPage() {
 
   const advanceStep = (next) => {
     if (!requireAuth()) return
-      if (next === 'address' && step === 'customize') {
-        if (effectiveTemplates.length > 0 && !selectedTemplate) {
-          toast.error('Please select a template')
-          return
-        }
+
+    if (next === 'templates' && step === 'details') {
+      if (product.variants && product.variants.length > 0 && !selectedVariant) {
+        toast.error('Please select a variant')
+        return
       }
+    }
+
+    if (next === 'customize' && step === 'templates') {
+      if (effectiveTemplates.length > 0 && !selectedTemplate) {
+        toast.error('Please select a design template')
+        return
+      }
+    }
+
+    if (next === 'address' && step === 'customize') {
+      // Customization is optional - images and notes are not required
+    }
+
     if (next === 'payment' && step === 'address') {
       if (!recipientName.trim() || !mobile.trim() || !addressLine.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
         toast.error('Please fill in all required address fields')
         return
       }
     }
+
     setStep(next)
   }
 
@@ -255,8 +275,8 @@ export default function ProductDetailPage() {
     </div>
   )
 
-  const needsCustomization = product.customizable || effectiveTemplates.length > 0
-  const STEPS = needsCustomization ? DEFAULT_STEPS : STEPS_WITHOUT_CUSTOMIZE
+  const isCustomizable = product.customizable || effectiveTemplates.length > 0
+  const STEPS = isCustomizable ? CUSTOMIZABLE_STEPS : SIMPLE_STEPS
   const price = selectedVariant ? selectedVariant.price : product.base_price
   const total = price * quantity
   const stepIndex = STEPS.findIndex(s => s.key === step)
@@ -311,6 +331,7 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
+      {/* STEP 1: Product Details */}
       {step === 'details' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
@@ -323,19 +344,31 @@ export default function ProductDetailPage() {
             />
           </div>
           <div>
-            <span className="text-sm text-primary-600 font-semibold">{product.category?.name}</span>
+            <div className="flex items-center gap-2 mb-2">
+              {product.category && (
+                <span className="text-sm bg-primary-100 text-primary-700 px-3 py-1 rounded-full font-semibold">
+                  {product.category.name}
+                </span>
+              )}
+              {isCustomizable && (
+                <span className="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">
+                  Customizable
+                </span>
+              )}
+            </div>
             <h1 className="text-3xl font-bold mt-1">{product.name}</h1>
+            <p className="mt-2 text-sm text-gray-500">{product.product_type === 'customized' ? 'Customized Product' : 'Ready-Made Product'}</p>
             <p className="mt-4 text-gray-600">{product.description}</p>
             <p className="mt-4 text-2xl font-bold text-primary-600">
               {formatCurrency(price)}
             </p>
 
-            {product.variants.length > 0 && (
+            {product.variants && product.variants.length > 0 && (
               <div className="mt-6">
-                <h3 className="font-semibold mb-2">Select Variant</h3>
+                <h3 className="font-semibold mb-2">Select Variant <span className="text-red-500">*</span></h3>
                 <div className="space-y-2">
                   {product.variants.map((v) => (
-                    <label key={v.id} className="flex items-center p-3 border rounded-md cursor-pointer hover:border-primary-500">
+                    <label key={v.id} className="flex items-center p-3 border rounded-md cursor-pointer hover:border-primary-500 transition-colors">
                       <input
                         type="radio"
                         name="variant"
@@ -365,113 +398,164 @@ export default function ProductDetailPage() {
             </div>
 
             <StepButton
-              next={needsCustomization ? 'customize' : 'address'}
-              label={needsCustomization ? 'Customize & Order' : 'Buy Now'}
+              next={isCustomizable ? 'templates' : 'address'}
+              label={isCustomizable ? 'Choose Design' : 'Buy Now'}
               primary
             />
           </div>
         </div>
       )}
 
-      {step === 'customize' && (
+      {/* STEP 2: Template Selection (only for customizable products) */}
+      {step === 'templates' && isCustomizable && (
         <div>
-          <h2 className="text-2xl font-bold mb-6">Customize Your Product</h2>
+          <h2 className="text-2xl font-bold mb-2">Select a Design Template</h2>
+          <p className="text-gray-500 mb-6">Choose a template for your {product.category?.name || 'product'}. You will upload your images in the next step.</p>
 
-          {effectiveTemplates.length > 0 && (
-            <div className="mb-6">
-              <h3 className="font-semibold mb-3">Select Template <span className="text-red-500">*</span></h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {effectiveTemplates.map((t) => (
-                  <div
-                    key={t.id}
-                    onClick={() => setSelectedTemplate(t)}
-                    className={`p-3 border rounded-md cursor-pointer text-center ${
-                      selectedTemplate?.id === t.id ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200' : ''
-                    }`}
-                  >
-                    {t.images && t.images.length > 0 ? (
-                      t.images.length === 1 ? (
-                        <img
-                          src={t.images[0].image_url}
-                          alt={t.name}
-                          loading="lazy"
-                          className="w-full h-24 object-cover rounded mb-2"
-                          onError={(e) => { e.target.onerror = null; e.target.src = NO_IMAGE_FALLBACK; }}
-                        />
-                      ) : (
-                        <div className="grid grid-cols-2 gap-1 mb-2">
-                          {t.images.slice(0, 4).map((img) => (
-                            <img
-                              key={img.id}
-                              src={img.image_url}
-                              alt=""
-                              loading="lazy"
-                              className="w-full h-12 object-cover rounded"
-                              onError={(e) => { e.target.onerror = null; e.target.src = NO_IMAGE_FALLBACK; }}
-                            />
-                          ))}
-                        </div>
-                      )
-                    ) : (
+          {effectiveTemplates.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {effectiveTemplates.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => setSelectedTemplate(t)}
+                  className={`p-3 border-2 rounded-lg cursor-pointer text-center transition-all ${
+                    selectedTemplate?.id === t.id
+                      ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200 shadow-md'
+                      : 'border-gray-200 hover:border-primary-300 hover:shadow-sm'
+                  }`}
+                >
+                  {t.images && t.images.length > 0 ? (
+                    t.images.length === 1 ? (
                       <img
-                        src={NO_IMAGE_FALLBACK}
+                        src={t.images[0].image_url}
                         alt={t.name}
-                        className="w-full h-24 object-cover rounded mb-2 opacity-50"
+                        loading="lazy"
+                        className="w-full h-32 object-cover rounded mb-2"
+                        onError={(e) => { e.target.onerror = null; e.target.src = NO_IMAGE_FALLBACK; }}
                       />
-                    )}
-                    <span className="text-sm font-medium">{t.name}</span>
-                    <p className="text-xs text-gray-500">Max {t.max_upload_count} images</p>
-                  </div>
-                ))}
-              </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1 mb-2">
+                        {t.images.slice(0, 4).map((img) => (
+                          <img
+                            key={img.id}
+                            src={img.image_url}
+                            alt=""
+                            loading="lazy"
+                            className="w-full h-16 object-cover rounded"
+                            onError={(e) => { e.target.onerror = null; e.target.src = NO_IMAGE_FALLBACK; }}
+                          />
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    <img
+                      src={NO_IMAGE_FALLBACK}
+                      alt={t.name}
+                      className="w-full h-32 object-cover rounded mb-2 opacity-50"
+                    />
+                  )}
+                  <span className="text-sm font-semibold">{t.name}</span>
+                  <p className="text-xs text-gray-500 mt-1">Up to {t.max_upload_count} images</p>
+                  {selectedTemplate?.id === t.id && (
+                    <span className="inline-block mt-2 text-xs bg-primary-600 text-white px-2 py-0.5 rounded-full">Selected</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No templates available for this product.</p>
             </div>
           )}
 
-          {product.customizable && (
-            <>
-              <div className="mb-6">
-                <h3 className="font-semibold mb-3">Upload Images</h3>
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="mb-3"
-                  aria-label="Upload images"
-                />
-                <div className="flex flex-wrap gap-3">
-                  {uploadedImages.map((url, i) => (
-                    <div key={i} className="relative">
-                      <img src={url} alt={`Upload ${i}`} loading="lazy" className="w-24 h-24 object-cover rounded" onError={(e) => { e.target.style.display = 'none'; }} />
-                      <button
-                        onClick={() => removeImage(i)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
-                        aria-label={`Remove image ${i + 1}`}
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <StepButton next="customize" label="Continue to Upload" primary />
+        </div>
+      )}
 
-              <div className="mb-6">
-                <h3 className="font-semibold mb-3">Customization Notes</h3>
-                <textarea
-                  value={customizationNotes}
-                  onChange={(e) => setCustomizationNotes(e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Enter any special instructions, gift message, printing details..."
-                  aria-label="Customization notes"
+      {/* STEP 3: Upload Images + Customization Notes (only for customizable products) */}
+      {step === 'customize' && isCustomizable && (
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Customize Your {product.category?.name || 'Product'}</h2>
+          <p className="text-gray-500 mb-6">Upload your images and add a customization message.</p>
+
+          {selectedTemplate && (
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6 flex items-center gap-4">
+              {selectedTemplate.images && selectedTemplate.images.length > 0 && (
+                <img
+                  src={selectedTemplate.images[0].image_url}
+                  alt={selectedTemplate.name}
+                  className="w-16 h-16 object-cover rounded"
+                  onError={(e) => { e.target.onerror = null; e.target.src = NO_IMAGE_FALLBACK; }}
                 />
+              )}
+              <div>
+                <p className="font-semibold">Selected Template: {selectedTemplate.name}</p>
+                <p className="text-sm text-gray-500">Maximum {selectedTemplate.max_upload_count} images allowed</p>
               </div>
-            </>
+              <button
+                onClick={() => setStep('templates')}
+                className="ml-auto text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Change
+              </button>
+            </div>
           )}
+
+          <div className="mb-6">
+            <h3 className="font-semibold mb-3">Upload Your Images</h3>
+            <input
+              type="file"
+              multiple
+              onChange={handleImageUpload}
+              className="mb-3"
+              aria-label="Upload images"
+            />
+            {uploadedImages.length > 0 && (
+              <div className="flex flex-wrap gap-3">
+                {uploadedImages.map((url, i) => (
+                  <div key={i} className="relative">
+                    <img src={url} alt={`Upload ${i}`} loading="lazy" className="w-24 h-24 object-cover rounded" onError={(e) => { e.target.style.display = 'none'; }} />
+                    <button
+                      onClick={() => removeImage(i)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                      aria-label={`Remove image ${i + 1}`}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mb-6">
+            <h3 className="font-semibold mb-3">Customization Message</h3>
+            <input
+              value={customizationNotes}
+              onChange={(e) => setCustomizationNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder='e.g. "Happy Birthday Rahul"'
+              aria-label="Customization message"
+            />
+          </div>
+
+          <div className="mb-6">
+            <h3 className="font-semibold mb-3">Additional Notes (Optional)</h3>
+            <textarea
+              value={customizationNotes}
+              onChange={(e) => setCustomizationNotes(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="Any special instructions, printing details..."
+              aria-label="Additional notes"
+            />
+          </div>
 
           <StepButton next="address" label="Continue to Delivery" primary />
         </div>
       )}
 
+      {/* STEP 4: Delivery Address */}
       {step === 'address' && (
         <div>
           <h2 className="text-2xl font-bold mb-6">Delivery Address</h2>
@@ -570,33 +654,83 @@ export default function ProductDetailPage() {
         </div>
       )}
 
+      {/* STEP 5: Payment + Order Summary */}
       {step === 'payment' && (
         <div>
           <h2 className="text-2xl font-bold mb-6">Review & Payment</h2>
 
+          {/* Order Summary */}
           <div className="bg-white p-6 rounded-lg shadow-md mb-6">
             <h3 className="font-semibold mb-4">Order Summary</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between"><span className="text-gray-600">Product:</span><span className="font-medium">{product.name}</span></div>
-              {selectedVariant && <div className="flex justify-between"><span className="text-gray-600">Variant:</span><span className="font-medium">{selectedVariant.name}</span></div>}
-              {selectedTemplate && <div className="flex justify-between"><span className="text-gray-600">Template:</span><span className="font-medium">{selectedTemplate.name}</span></div>}
-              <div className="flex justify-between"><span className="text-gray-600">Quantity:</span><span className="font-medium">{quantity}</span></div>
-              <div className="flex justify-between border-t pt-2 mt-2"><span className="text-lg font-bold">Total:</span><span className="text-lg font-bold text-primary-600">{formatCurrency(total)}</span></div>
+            <div className="flex gap-4 mb-4">
+              <img
+                src={product.image_url || NO_IMAGE_FALLBACK}
+                alt={product.name}
+                className="w-20 h-20 object-cover rounded"
+                onError={(e) => { e.target.onerror = null; e.target.src = NO_IMAGE_FALLBACK; }}
+              />
+              <div>
+                <p className="font-bold text-lg">{product.name}</p>
+                {product.category && <p className="text-sm text-primary-600">{product.category.name}</p>}
+                <p className="text-sm text-gray-500">{product.product_type === 'customized' ? 'Customized' : 'Ready-Made'}</p>
+              </div>
+            </div>
+            <div className="space-y-2 border-t pt-4">
+              {selectedVariant && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Variant:</span>
+                  <span className="font-medium">{selectedVariant.name}</span>
+                </div>
+              )}
+              {selectedTemplate && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Template:</span>
+                  <span className="font-medium">{selectedTemplate.name}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-600">Quantity:</span>
+                <span className="font-medium">{quantity}</span>
+              </div>
+              {uploadedImages.length > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Uploaded Images:</span>
+                  <span className="font-medium">{uploadedImages.length}</span>
+                </div>
+              )}
+              {customizationNotes && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Customization:</span>
+                  <span className="font-medium text-right max-w-[250px] truncate">{customizationNotes}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t pt-2 mt-2">
+                <span className="text-lg font-bold">Total:</span>
+                <span className="text-lg font-bold text-primary-600">{formatCurrency(total)}</span>
+              </div>
             </div>
           </div>
 
+          {/* Delivery Address */}
           <div className="bg-white p-6 rounded-lg shadow-md mb-6">
             <h3 className="font-semibold mb-2">Delivery To</h3>
-            <p className="text-gray-600 text-sm">{recipientName}, {addressLine}, {city}, {state} - {postalCode}</p>
+            <p className="text-gray-600 text-sm">
+              <strong>{recipientName}</strong><br />
+              {addressLine}<br />
+              {city}, {state} - {postalCode}
+              {landmark && <><br />Landmark: {landmark}</>}
+              <br />Phone: {mobile}
+            </p>
           </div>
 
+          {/* Payment */}
           <div className="bg-white p-6 rounded-lg shadow-md mb-6">
             <h3 className="font-semibold mb-3">Scan & Pay</h3>
             <p className="text-sm text-gray-600 mb-4">
               Scan the QR code below using any UPI app (Google Pay, PhonePe, Paytm) to complete payment.
             </p>
             <img
-              src="https://res.cloudinary.com/demo/image/upload/v1/tagon/qr-code.png"
+              src={qrUrl || "https://res.cloudinary.com/demo/image/upload/v1/tagon/qr-code.png"}
               alt="QR Code for UPI payment"
               loading="lazy"
               className="w-48 h-48 mx-auto mb-4"

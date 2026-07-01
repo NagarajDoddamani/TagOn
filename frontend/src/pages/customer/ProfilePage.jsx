@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
 import { reviewService } from '../../services/review.service'
 import { orderService } from '../../services/order.service'
+import { addressService } from '../../services/address.service'
 import { formatDate } from '../../utils/helpers'
 import OrderStatusBadge from '../../components/common/OrderStatusBadge'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
@@ -10,10 +11,10 @@ import { toast } from '../../store/toast.store'
 
 const SECTIONS = [
   { key: 'profile', label: 'Profile Information' },
+  { key: 'addresses', label: 'My Addresses' },
   { key: 'orders', label: 'My Orders' },
   { key: 'tracking', label: 'Order Tracking' },
   { key: 'reviews', label: 'My Reviews' },
-  { key: 'settings', label: 'Settings' },
 ]
 
 export default function ProfilePage() {
@@ -93,10 +94,10 @@ export default function ProfilePage() {
 
         <div className="lg:col-span-3">
           {activeSection === 'profile' && <ProfileInfoSection user={user} stats={stats} />}
+          {activeSection === 'addresses' && <AddressesSection />}
           {activeSection === 'orders' && <MyOrdersSection />}
           {activeSection === 'tracking' && <OrderTrackingSection />}
           {activeSection === 'reviews' && <MyReviewsSection />}
-          {activeSection === 'settings' && <SettingsPlaceholder />}
         </div>
       </div>
     </div>
@@ -383,11 +384,168 @@ function MyReviewsSection() {
   )
 }
 
-function SettingsPlaceholder() {
+function AddressesSection() {
+  const [addresses, setAddresses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [form, setForm] = useState({ recipient_name: '', mobile: '', address_line: '', city: '', state: '', postal_code: '', landmark: '' })
+  const [saving, setSaving] = useState(false)
+
+  const load = async () => {
+    try {
+      const data = await addressService.getAddresses()
+      setAddresses(data)
+    } catch {
+      toast.error('Failed to load addresses')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
+
+  const handleAdd = () => {
+    setEditingId(null)
+    setForm({ recipient_name: '', mobile: '', address_line: '', city: '', state: '', postal_code: '', landmark: '' })
+    setShowForm(true)
+  }
+
+  const handleEdit = (addr) => {
+    setEditingId(addr.id)
+    setForm({ recipient_name: addr.recipient_name, mobile: addr.mobile, address_line: addr.address_line, city: addr.city, state: addr.state, postal_code: addr.postal_code, landmark: addr.landmark || '' })
+    setShowForm(true)
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this address?')) return
+    try {
+      await addressService.deleteAddress(id)
+      toast.success('Address deleted')
+      load()
+    } catch {
+      toast.error('Failed to delete address')
+    }
+  }
+
+  const handleSetDefault = async (id) => {
+    try {
+      await addressService.setDefaultAddress(id)
+      toast.success('Default address updated')
+      load()
+    } catch {
+      toast.error('Failed to set default')
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!form.recipient_name.trim() || !form.mobile.trim() || !form.address_line.trim() || !form.city.trim() || !form.state.trim() || !form.postal_code.trim()) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+    setSaving(true)
+    try {
+      if (editingId) {
+        await addressService.updateAddress(editingId, form)
+        toast.success('Address updated')
+      } else {
+        await addressService.createAddress(form)
+        toast.success('Address saved')
+      }
+      setShowForm(false)
+      load()
+    } catch {
+      toast.error('Failed to save address')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <LoadingSpinner />
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-bold mb-4">Settings</h2>
-      <p className="text-gray-500">Account settings will be available here in a future update.</p>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">My Addresses</h2>
+        <button onClick={handleAdd} className="bg-primary-600 text-white px-4 py-2 rounded-md text-sm hover:bg-primary-700 transition-colors">
+          + Add Address
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="border rounded-lg p-4 mb-4 bg-gray-50 space-y-3">
+          <h3 className="font-semibold">{editingId ? 'Edit Address' : 'New Address'}</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Recipient Name *</label>
+              <input value={form.recipient_name} onChange={(e) => handleChange('recipient_name', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Mobile *</label>
+              <input value={form.mobile} onChange={(e) => handleChange('mobile', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" type="tel" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Address Line *</label>
+            <input value={form.address_line} onChange={(e) => handleChange('address_line', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">City *</label>
+              <input value={form.city} onChange={(e) => handleChange('city', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">State *</label>
+              <input value={form.state} onChange={(e) => handleChange('state', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Postal Code *</label>
+              <input value={form.postal_code} onChange={(e) => handleChange('postal_code', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Landmark (Optional)</label>
+            <input value={form.landmark} onChange={(e) => handleChange('landmark', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" />
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Cancel</button>
+            <button onClick={handleSubmit} disabled={saving} className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700 disabled:opacity-50">
+              {saving ? 'Saving...' : editingId ? 'Update Address' : 'Save Address'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {addresses.length === 0 ? (
+        <p className="text-gray-500 text-center py-6">No saved addresses. Add one to use during checkout.</p>
+      ) : (
+        <div className="space-y-3">
+          {addresses.map((addr) => (
+            <div key={addr.id} className={`border rounded-lg p-4 ${addr.is_default ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{addr.recipient_name}</p>
+                    {addr.is_default && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Default</span>}
+                  </div>
+                  <p className="text-sm text-gray-600">{addr.mobile}</p>
+                  <p className="text-sm text-gray-600 mt-1">{addr.address_line}, {addr.city}, {addr.state} - {addr.postal_code}</p>
+                  {addr.landmark && <p className="text-xs text-gray-400 mt-1">Landmark: {addr.landmark}</p>}
+                </div>
+                <div className="flex gap-2">
+                  {!addr.is_default && (
+                    <button onClick={() => handleSetDefault(addr.id)} className="text-xs text-primary-600 hover:text-primary-700 font-medium">Set Default</button>
+                  )}
+                  <button onClick={() => handleEdit(addr)} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Edit</button>
+                  <button onClick={() => handleDelete(addr.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

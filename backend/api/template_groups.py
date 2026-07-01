@@ -13,6 +13,16 @@ from utils.pagination import build_paginated_response
 
 router = APIRouter(prefix="/api/template-groups", tags=["Template Groups"])
 
+ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_FILE_SIZE = 5 * 1024 * 1024
+
+
+class CreateGroupResult(BaseModel):
+    group: TemplateGroupResponse
+    templates_created: int
+    templates_failed: int
+    failed: List[dict]
+
 
 class BatchUploadResult(BaseModel):
     templates: List[TemplateResponse]
@@ -44,22 +54,55 @@ def get_group(group_id: str, db: Session = Depends(get_db)):
     return service.get_group(group_id)
 
 
-@router.post("", response_model=TemplateGroupResponse)
-def create_group(
+@router.post("", response_model=CreateGroupResult)
+async def create_group(
     name: str = Form(...),
     description: Optional[str] = Form(None),
-    preview_image: Optional[UploadFile] = File(None),
+    design_images: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    image_url = None
-    if preview_image:
-        result = upload_image(preview_image, folder="tagon/template_groups")
-        image_url = result["url"]
     service = TemplateGroupService(db)
-    return service.create_group(
-        {"name": name, "description": description, "preview_image": image_url},
+    group = service.create_group(
+        {"name": name, "description": description},
         admin_id=str(admin.id),
+    )
+
+    created_templates = []
+    failed_files = []
+
+    if design_images:
+        for f in design_images:
+            content_type = f.content_type or ""
+            if content_type not in ALLOWED_TYPES:
+                failed_files.append({"filename": f.filename, "reason": f"Invalid type: {content_type}"})
+                continue
+            file_bytes = await f.read()
+            if len(file_bytes) > MAX_FILE_SIZE:
+                failed_files.append({"filename": f.filename, "reason": f"Too large ({len(file_bytes) / (1024*1024):.1f}MB)"})
+                continue
+            template_name = f.filename.rsplit(".", 1)[0] if f.filename else "Untitled"
+            template = service.create_template_from_image(
+                group_id=str(group.id),
+                name=template_name,
+                image_file=f,
+                file_bytes=file_bytes,
+                max_upload_count=1,
+                admin_id=str(admin.id),
+            )
+            created_templates.append(template)
+
+        if created_templates:
+            first_image_url = created_templates[0].images[0].image_url if created_templates[0].images else None
+            if first_image_url:
+                service.update_group(str(group.id), {"preview_image": first_image_url}, admin_id=str(admin.id))
+                group = service.get_group(str(group.id))
+
+    return CreateGroupResult(
+        group=group,
+        templates_created=len(created_templates),
+        templates_failed=len(failed_files),
+        failed=failed_files,
     )
 
 
@@ -105,9 +148,6 @@ async def create_templates_batch(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
-    MAX_SIZE = 5 * 1024 * 1024
-
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
 
@@ -118,11 +158,11 @@ async def create_templates_batch(
     for f in files:
         content_type = f.content_type or ""
         if content_type not in ALLOWED_TYPES:
-            failed_files.append({"filename": f.filename, "reason": f"Invalid file type: {content_type}. Allowed: JPEG, PNG, WEBP"})
+            failed_files.append({"filename": f.filename, "reason": f"Invalid type: {content_type}"})
             continue
         file_bytes = await f.read()
-        if len(file_bytes) > MAX_SIZE:
-            failed_files.append({"filename": f.filename, "reason": f"File too large ({len(file_bytes) / (1024*1024):.1f}MB). Max: 5MB"})
+        if len(file_bytes) > MAX_FILE_SIZE:
+            failed_files.append({"filename": f.filename, "reason": f"Too large ({len(file_bytes) / (1024*1024):.1f}MB)"})
             continue
         name = f.filename.rsplit(".", 1)[0] if f.filename else "Untitled"
         template = service.create_template_from_image(

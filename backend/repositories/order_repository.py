@@ -3,6 +3,7 @@ from sqlalchemy import or_, cast, String
 from models.order import Order
 from models.order_status_history import OrderStatusHistory
 from models.user import User
+from models.product import Product
 from typing import Optional, List
 from utils.pagination import paginate
 
@@ -20,20 +21,28 @@ class OrderRepository:
 
     def get_by_id(self, order_id: str) -> Optional[Order]:
         return self.db.query(Order).options(
-            joinedload(Order.product),
+            joinedload(Order.product).joinedload(Product.category),
             joinedload(Order.variant),
             joinedload(Order.template),
             joinedload(Order.payment),
+            joinedload(Order.customer),
         ).filter(Order.id == order_id).first()
 
     def get_by_customer(self, customer_id: str, status: Optional[str] = None) -> List[Order]:
-        query = self.db.query(Order).filter(Order.customer_id == customer_id)
+        query = self.db.query(Order).options(
+            joinedload(Order.product).joinedload(Product.category),
+            joinedload(Order.variant),
+            joinedload(Order.template),
+        ).filter(Order.customer_id == customer_id)
         if status:
             query = query.filter(Order.order_status == status)
         return query.order_by(Order.created_at.desc()).all()
 
     def get_all(self, status: Optional[str] = None, page: Optional[int] = None, per_page: int = 20):
-        query = self.db.query(Order).options(joinedload(Order.customer)).order_by(Order.created_at.desc())
+        query = self.db.query(Order).options(
+            joinedload(Order.customer),
+            joinedload(Order.product).joinedload(Product.category),
+        ).order_by(Order.created_at.desc())
         if status:
             query = query.filter(Order.order_status == status)
         if page is not None:
@@ -47,7 +56,7 @@ class OrderRepository:
                       max_amount: Optional[float] = None, page: Optional[int] = None,
                       per_page: int = 20):
         query = self.db.query(Order).options(
-            joinedload(Order.customer), joinedload(Order.product)
+            joinedload(Order.customer), joinedload(Order.product).joinedload(Product.category)
         ).order_by(Order.created_at.desc())
 
         if status:

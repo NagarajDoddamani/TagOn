@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
+import { paymentService } from '../../services/payment.service'
 import { confirmLogout } from '../../utils/swal'
 
 const navClass = ({ isActive }) =>
@@ -16,7 +17,12 @@ export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [logoUrl, setLogoUrl] = useState('')
   const closeMobile = () => setMobileOpen(false)
+
+  useEffect(() => {
+    paymentService.getBusinessInfo().then(d => setLogoUrl(d.logo_url || '')).catch(() => {})
+  }, [])
 
   const handleLogout = async () => {
     const result = await confirmLogout()
@@ -30,7 +36,10 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <NavLink to="/" end className="text-xl font-bold text-primary-600" aria-label="TagOn Home">
+            <NavLink to="/" end className="flex items-center gap-2 text-xl font-bold text-primary-600" aria-label="TagOn Home">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="h-8 w-auto rounded" onError={(e) => { e.target.style.display = 'none' }} />
+              ) : null}
               TagOn
             </NavLink>
             <div className="hidden md:flex ml-10 space-x-1">

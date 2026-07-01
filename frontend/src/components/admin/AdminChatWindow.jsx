@@ -8,9 +8,10 @@ export default function AdminChatWindow({ orderId }) {
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
-  const bottomRef = useRef(null)
+  const scrollRef = useRef(null)
   const fileInputRef = useRef(null)
   const user = useAuthStore((s) => s.user)
+  const prevCountRef = useRef(0)
 
   useEffect(() => {
     loadMessages()
@@ -19,7 +20,10 @@ export default function AdminChatWindow({ orderId }) {
   }, [orderId])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messages.length > prevCountRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+    prevCountRef.current = messages.length
   }, [messages])
 
   async function loadMessages() {
@@ -53,7 +57,7 @@ export default function AdminChatWindow({ orderId }) {
   return (
     <div className="bg-white rounded-lg shadow flex flex-col h-[500px]">
       <div className="p-4 border-b font-semibold text-gray-700">Customer Chat</div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading ? (
           <div className="text-center text-gray-400 py-8">Loading messages...</div>
         ) : messages.length === 0 ? (
@@ -86,7 +90,6 @@ export default function AdminChatWindow({ orderId }) {
             )
           })
         )}
-        <div ref={bottomRef} />
       </div>
       <div className="p-4 border-t flex gap-2">
         <input

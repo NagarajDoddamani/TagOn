@@ -32,8 +32,12 @@ export default function LandingPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const productsData = await productService.getProducts(undefined, undefined, search || undefined, undefined, true)
+        const [productsData, categoriesData] = await Promise.all([
+          productService.getProducts(undefined, undefined, search || undefined, undefined, true),
+          productService.getCategories(),
+        ])
         setFeaturedProducts(productsData)
+        setCategories(categoriesData.filter(c => c.status === 'active'))
       } catch {
         // silently fail - landing page still renders
       } finally {

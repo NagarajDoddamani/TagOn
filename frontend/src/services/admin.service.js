@@ -44,6 +44,17 @@ export const adminService = {
     return data
   },
 
+  async uploadSettingsImage(group, key, file) {
+    const formData = new FormData()
+    formData.append('group', group)
+    formData.append('key', key)
+    formData.append('file', file)
+    const { data } = await api.post('/admin/settings/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return data
+  },
+
   async getActivityLogs() {
     const { data } = await api.get('/admin/activity-logs')
     return data

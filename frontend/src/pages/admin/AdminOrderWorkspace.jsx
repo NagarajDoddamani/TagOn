@@ -158,6 +158,30 @@ export default function AdminOrderWorkspace() {
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold mb-4">Order Details</h2>
               <div className="space-y-3">
+                {order.product && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Product</span>
+                    <span className="font-medium">{order.product.name}</span>
+                  </div>
+                )}
+                {order.product?.category && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Category</span>
+                    <span className="font-medium">{order.product.category.name}</span>
+                  </div>
+                )}
+                {order.template && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Template</span>
+                    <span className="font-medium">{order.template.name}</span>
+                  </div>
+                )}
+                {order.variant && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Variant</span>
+                    <span className="font-medium">{order.variant.name}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Status</span>
                   <OrderStatusBadge status={order.order_status} />

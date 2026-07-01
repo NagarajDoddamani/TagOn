@@ -6,6 +6,11 @@ export const paymentService = {
     return data
   },
 
+  async getBusinessInfo() {
+    const { data } = await api.get('/payments/business-info')
+    return data
+  },
+
   async uploadScreenshot(orderId, screenshot, transactionId) {
     const formData = new FormData()
     formData.append('screenshot', screenshot)

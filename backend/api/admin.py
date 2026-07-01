@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File, Form
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
 from core.database import get_db
 from core.security import require_admin
+from core.cloudinary import upload_image
 from repositories.user_repository import UserRepository
 from repositories.order_repository import OrderRepository
 from repositories.activity_log_repository import ActivityLogRepository
@@ -171,3 +172,28 @@ def update_settings_group(group: str, data: dict, db: Session = Depends(get_db),
         raise HTTPException(status_code=400, detail=f"Invalid group. Valid: {', '.join(sorted(SETTINGS_GROUPS))}")
     service = SettingsService(db)
     return service.update_group(group, data)
+
+
+@router.post("/settings/upload-image")
+async def upload_settings_image(
+    group: str = Form(...),
+    key: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    if group not in SETTINGS_GROUPS:
+        raise HTTPException(status_code=400, detail=f"Invalid group. Valid: {', '.join(sorted(SETTINGS_GROUPS))}")
+    ALLOWED = {"image/jpeg", "image/png", "image/webp"}
+    if file.content_type not in ALLOWED:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, WEBP images allowed")
+    file_bytes = await file.read()
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image must be less than 5MB")
+    file.file.seek(0)
+    result = upload_image(file, folder="tagon/settings")
+    service = SettingsService(db)
+    current = service.get_group(group)
+    current[key] = result["url"]
+    updated = service.update_group(group, current)
+    return updated
